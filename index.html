@@ -2,100 +2,96 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Snake 60 FPS</title>
+  <title>Snake Google Style 60 FPS</title>
   <style>
     body {
-      background: #fafafa;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
       margin: 0;
-      font-family: Arial, sans-serif;
-      user-select: none;
+      background: #f1f1f1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: sans-serif;
+    }
+    canvas {
+      border: 2px solid #444;
+      background: #fff;
     }
     #score {
       position: absolute;
       top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
       font-size: 24px;
-      color: #333;
+      color: #222;
     }
     #overlay {
       position: absolute;
       top: 0; left: 0;
-      width: 100%; height: 100%;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
       display: flex;
-      align-items: center;
       justify-content: center;
-      font-size: 32px;
-      color: #333;
-      background: rgba(255,255,255,0.85);
-      visibility: hidden;
+      align-items: center;
       flex-direction: column;
+      font-size: 32px;
+      color: #222;
+      visibility: hidden;
     }
     #overlay button {
       margin-top: 10px;
-      padding: 10px 20px;
       font-size: 20px;
+      padding: 10px 20px;
       cursor: pointer;
-    }
-    canvas {
-      border: 2px solid #333;
-      background: #eee;
     }
   </style>
 </head>
 <body>
-
+<canvas id="game" width="400" height="400"></canvas>
 <div id="score">Puntos: 0</div>
 <div id="overlay">
   <div>¡Game Over!</div>
   <button onclick="startGame()">Jugar de nuevo</button>
 </div>
-<canvas id="game" width="400" height="400"></canvas>
 
 <script>
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
-const scoreEl = document.getElementById('score');
-const overlay = document.getElementById('overlay');
-
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 const grid = 20;
-let snake, apple, dir, score, lastTime = 0;
-let speed = 10; // cuadros por segundo (snake), no frames por segundo (canvas)
+let snake, dir, apple, score, lastTime = 0, speed = 10;
 let frameInterval = 1000 / speed;
 let accumulatedTime = 0;
 let isRunning = false;
+const scoreEl = document.getElementById('score');
+const overlay = document.getElementById('overlay');
 
 function startGame() {
   snake = [{x:10, y:10}];
-  dir = {x:0, y:0};
-  placeApple();
+  dir = {x:1, y:0};
   score = 0;
-  scoreEl.textContent = 'Puntos: ' + score;
+  placeApple();
+  scoreEl.textContent = "Puntos: 0";
   overlay.style.visibility = 'hidden';
-  accumulatedTime = 0;
   lastTime = performance.now();
+  accumulatedTime = 0;
   isRunning = true;
-  requestAnimationFrame(gameLoop);
+  requestAnimationFrame(loop);
 }
 
 function placeApple() {
-  apple = {
-    x: Math.floor(Math.random() * (canvas.width / grid)),
-    y: Math.floor(Math.random() * (canvas.height / grid))
-  };
-  if (snake.some(s => s.x === apple.x && s.y === apple.y)) placeApple();
+  do {
+    apple = {
+      x: Math.floor(Math.random() * canvas.width / grid),
+      y: Math.floor(Math.random() * canvas.height / grid)
+    };
+  } while (snake.some(s => s.x === apple.x && s.y === apple.y));
 }
 
-function gameLoop(timestamp) {
+function loop(timestamp) {
   if (!isRunning) return;
 
-  const deltaTime = timestamp - lastTime;
+  const delta = timestamp - lastTime;
   lastTime = timestamp;
-  accumulatedTime += deltaTime;
+  accumulatedTime += delta;
 
   if (accumulatedTime >= frameInterval) {
     update();
@@ -103,19 +99,18 @@ function gameLoop(timestamp) {
     accumulatedTime = 0;
   }
 
-  requestAnimationFrame(gameLoop);
+  requestAnimationFrame(loop);
 }
 
 function update() {
-  const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+  const head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
 
-  // choque contra pared o sí mismo
-  if (
-    head.x < 0 || head.x >= canvas.width / grid ||
-    head.y < 0 || head.y >= canvas.height / grid ||
-    snake.some(part => part.x === head.x && part.y === head.y)
-  ) {
-    gameOver();
+  // colisiones
+  if (head.x < 0 || head.y < 0 ||
+      head.x >= canvas.width / grid || head.y >= canvas.height / grid ||
+      snake.some(s => s.x === head.x && s.y === head.y)) {
+    isRunning = false;
+    overlay.style.visibility = 'visible';
     return;
   }
 
@@ -123,7 +118,7 @@ function update() {
 
   if (head.x === apple.x && head.y === apple.y) {
     score++;
-    scoreEl.textContent = 'Puntos: ' + score;
+    scoreEl.textContent = "Puntos: " + score;
     placeApple();
   } else {
     snake.pop();
@@ -131,51 +126,81 @@ function update() {
 }
 
 function draw() {
-  ctx.fillStyle = '#eee';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // serpiente
-  ctx.fillStyle = '#333';
-  snake.forEach(part => {
-    ctx.fillRect(part.x * grid, part.y * grid, grid - 1, grid - 1);
-  });
-
-  // manzana
-  ctx.fillStyle = '#e74c3c';
+  // Manzana
+  ctx.fillStyle = "#e74c3c";
   ctx.beginPath();
   ctx.arc(
     apple.x * grid + grid / 2,
     apple.y * grid + grid / 2,
-    grid / 2 - 1, 0, Math.PI * 2
+    grid / 2 - 2, 0, Math.PI * 2
   );
   ctx.fill();
+
+  // Dibujar la serpiente
+  for (let i = 0; i < snake.length; i++) {
+    const part = snake[i];
+    const isHead = i === 0;
+
+    ctx.fillStyle = isHead ? "#2c3e50" : "#16a085";
+    ctx.beginPath();
+    ctx.roundRect(
+      part.x * grid + 2,
+      part.y * grid + 2,
+      grid - 4,
+      grid - 4,
+      grid / 3
+    );
+    ctx.fill();
+
+    // Ojos
+    if (isHead) {
+      ctx.fillStyle = "#fff";
+      const eyeOffsetX = dir.x === 1 ? 4 : dir.x === -1 ? -4 : 0;
+      const eyeOffsetY = dir.y === 1 ? 4 : dir.y === -1 ? -4 : 0;
+      ctx.beginPath();
+      ctx.arc(part.x * grid + grid / 2 + eyeOffsetX, part.y * grid + grid / 2 + eyeOffsetY, 2, 0, Math.PI * 2);
+      ctx.arc(part.x * grid + grid / 2 - eyeOffsetX, part.y * grid + grid / 2 + eyeOffsetY, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 }
 
-function gameOver() {
-  isRunning = false;
-  overlay.style.visibility = 'visible';
-}
-
-document.addEventListener('keydown', e => {
+// Teclas
+document.addEventListener("keydown", e => {
   switch (e.code) {
-    case 'ArrowUp':
-      if (dir.y !== 1) dir = {x:0, y:-1};
+    case "ArrowUp":
+      if (dir.y !== 1) dir = {x: 0, y: -1};
       break;
-    case 'ArrowDown':
-      if (dir.y !== -1) dir = {x:0, y:1};
+    case "ArrowDown":
+      if (dir.y !== -1) dir = {x: 0, y: 1};
       break;
-    case 'ArrowLeft':
-      if (dir.x !== 1) dir = {x:-1, y:0};
+    case "ArrowLeft":
+      if (dir.x !== 1) dir = {x: -1, y: 0};
       break;
-    case 'ArrowRight':
-      if (dir.x !== -1) dir = {x:1, y:0};
+    case "ArrowRight":
+      if (dir.x !== -1) dir = {x: 1, y: 0};
       break;
   }
 });
 
-// Iniciar
+// Método para esquinas redondeadas
+CanvasRenderingContext2D.prototype.roundRect = function (x, y, width, height, radius) {
+  this.beginPath();
+  this.moveTo(x + radius, y);
+  this.lineTo(x + width - radius, y);
+  this.quadraticCurveTo(x + width, y, x + width, y + radius);
+  this.lineTo(x + width, y + height - radius);
+  this.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  this.lineTo(x + radius, y + height);
+  this.quadraticCurveTo(x, y + height, x, y + height - radius);
+  this.lineTo(x, y + radius);
+  this.quadraticCurveTo(x, y, x + radius, y);
+  this.closePath();
+};
+
 startGame();
 </script>
-
 </body>
 </html>
