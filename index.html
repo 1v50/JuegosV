@@ -2,125 +2,164 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Flappy Bird Simple</title>
+  <title>Snake estilo Google</title>
   <style>
-    canvas {
-      display: block;
-      margin: 0 auto;
-      background: skyblue;
+    body {
+      background: #fafafa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      user-select: none;
+      font-family: Arial, sans-serif;
+    }
+    #game {
+      border: 2px solid #333;
+      background: #eee;
+    }
+    #score {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 24px;
+      color: #333;
+    }
+    #overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      color: #333;
+      background: rgba(255,255,255,0.8);
+      visibility: hidden;
+      flex-direction: column;
+    }
+    #overlay button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 20px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas" width="400" height="600"></canvas>
-  <script>
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
 
-    // Constantes
-    const WIDTH = canvas.width;
-    const HEIGHT = canvas.height;
-    const GRAVITY = 0.6;
-    const FLAP = -10;
-    const PIPE_WIDTH = 60;
-    const PIPE_GAP = 150;
-    const BIRD_SIZE = 30;
+<div id="score">Puntos: 0</div>
+<div id="overlay">
+  <div>¡Game Over!</div>
+  <button onclick="startGame()">Jugar de nuevo</button>
+</div>
+<canvas id="game" width="400" height="400"></canvas>
 
-    // Bird
-    let birdY = HEIGHT / 2;
-    let birdVelocity = 0;
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const overlay = document.getElementById('overlay');
 
-    // Pipes
-    let pipes = [];
-    let pipeSpeed = 2;
-    let frameCount = 0;
+const grid = 20;
+let snake, apple, dir, score, gameLoop;
 
-    // Ground
-    let groundY = HEIGHT - 40;
-    const groundImg = new Image();
-    groundImg.src = "https://i.imgur.com/wP6kB4o.png"; // Imagen de suelo
-    let groundReady = false;
-    groundImg.onload = () => {
-      groundReady = true;
-    };
-    groundImg.onerror = () => {
-      console.warn("No se pudo cargar la imagen del suelo.");
-    };
+function startGame() {
+  snake = [{x:10, y:10}];
+  dir = {x:0, y:0};
+  placeApple();
+  score = 0;
+  scoreEl.textContent = 'Puntos: ' + score;
+  overlay.style.visibility = 'hidden';
+  clearInterval(gameLoop);
+  gameLoop = setInterval(update, 100);
+}
 
-    // Funciones
-    function drawBird() {
-      ctx.fillStyle = "blue";
-      ctx.fillRect(80, birdY, BIRD_SIZE, BIRD_SIZE);
-    }
+function placeApple() {
+  apple = {
+    x: Math.floor(Math.random() * (canvas.width/grid)),
+    y: Math.floor(Math.random() * (canvas.height/grid))
+  };
+  // Asegurar que no aparezca dentro de la serpiente
+  if (snake.some(part => part.x === apple.x && part.y === apple.y)) {
+    placeApple();
+  }
+}
 
-    function drawPipes() {
-      ctx.fillStyle = "green";
-      pipes.forEach(pipe => {
-        ctx.fillRect(pipe.x, 0, PIPE_WIDTH, pipe.top);
-        ctx.fillRect(pipe.x, pipe.top + PIPE_GAP, PIPE_WIDTH, HEIGHT);
-      });
-    }
+function update() {
+  const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
 
-    function drawGround() {
-      if (groundReady) {
-        for (let x = 0; x < WIDTH; x += 32) {
-          ctx.drawImage(groundImg, x, groundY);
-        }
-      } else {
-        ctx.fillStyle = "#DEB887"; // fallback visual
-        ctx.fillRect(0, groundY, WIDTH, HEIGHT - groundY);
-      }
-    }
+  // Checar colisiones pared o consigo misma
+  if (
+    head.x < 0 || head.x >= canvas.width/grid ||
+    head.y < 0 || head.y >= canvas.height/grid ||
+    snake.some(part => part.x === head.x && part.y === head.y)
+  ) {
+    clearInterval(gameLoop);
+    overlay.style.visibility = 'visible';
+    return;
+  }
 
-    function update() {
-      birdVelocity += GRAVITY;
-      birdY += birdVelocity;
+  snake.unshift(head);
 
-      // Suelo
-      if (birdY + BIRD_SIZE > groundY) {
-        birdY = groundY - BIRD_SIZE;
-        birdVelocity = 0;
-      }
+  // Comer apple
+  if (head.x === apple.x && head.y === apple.y) {
+    score++;
+    scoreEl.textContent = 'Puntos: ' + score;
+    placeApple();
+  } else {
+    snake.pop();
+  }
 
-      // Tubos
-      pipes.forEach(pipe => {
-        pipe.x -= pipeSpeed;
-      });
+  draw();
+}
 
-      // Remover tubos fuera de pantalla
-      pipes = pipes.filter(pipe => pipe.x + PIPE_WIDTH > 0);
+function draw() {
+  ctx.fillStyle = '#eee';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Añadir tubos nuevos
-      if (frameCount % 90 === 0) {
-        const top = Math.random() * (HEIGHT - PIPE_GAP - 100) + 20;
-        pipes.push({ x: WIDTH, top: top });
-      }
+  // Dibujar serpiente
+  ctx.fillStyle = '#333';
+  snake.forEach(part => {
+    ctx.fillRect(part.x * grid, part.y * grid, grid-1, grid-1);
+  });
 
-      frameCount++;
-    }
+  // Dibujar apple
+  ctx.fillStyle = '#e74c3c';
+  ctx.beginPath();
+  ctx.arc(
+    apple.x * grid + grid/2,
+    apple.y * grid + grid/2,
+    grid/2 - 1, 0, Math.PI * 2
+  );
+  ctx.fill();
+}
 
-    function draw() {
-      ctx.clearRect(0, 0, WIDTH, HEIGHT);
-      drawBird();
-      drawPipes();
-      drawGround();
-    }
+document.addEventListener('keydown', e => {
+  switch(e.code) {
+    case 'ArrowUp':
+      if (dir.y === 1) break;
+      dir = {x:0, y:-1};
+      break;
+    case 'ArrowDown':
+      if (dir.y === -1) break;
+      dir = {x:0, y:1};
+      break;
+    case 'ArrowLeft':
+      if (dir.x === 1) break;
+      dir = {x:-1, y:0};
+      break;
+    case 'ArrowRight':
+      if (dir.x === -1) break;
+      dir = {x:1, y:0};
+      break;
+  }
+});
 
-    function loop() {
-      update();
-      draw();
-      requestAnimationFrame(loop);
-    }
+// Iniciar al cargar
+startGame();
+</script>
 
-    // Input
-    document.addEventListener("keydown", e => {
-      if (e.code === "Space") {
-        birdVelocity = FLAP;
-      }
-    });
-
-    // Iniciar el juego
-    loop();
-  </script>
 </body>
 </html>
