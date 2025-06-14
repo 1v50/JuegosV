@@ -1,289 +1,146 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Pou Complejo en 1 archivo</title>
-<style>
-  body {
-    background: linear-gradient(135deg, #f0c27b, #4b1248);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: #fff;
-    margin: 0; padding: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    height: 100vh;
-    overflow: hidden;
-  }
-  #game-container {
-    background: #42275a;
-    box-shadow: 0 0 20px #ff4081;
-    border-radius: 20px;
-    padding: 15px;
-    width: 350px;
-    text-align: center;
-    user-select: none;
-  }
-  canvas {
-    background: #7b4397;
-    border-radius: 15px;
-    display: block;
-    margin: 0 auto 15px auto;
-  }
-  button {
-    background: #ff4081;
-    border: none;
-    border-radius: 10px;
-    color: white;
-    font-size: 18px;
-    margin: 8px 5px;
-    padding: 10px 15px;
-    cursor: pointer;
-    transition: background 0.3s;
-  }
-  button:hover {
-    background: #e73370;
-  }
-  #stats {
-    margin-top: 10px;
-    font-size: 18px;
-    line-height: 1.5;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <title>Flappy Bird</title>
+  <style>
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: #70c5ce; /* cielo azul */
+    }
+  </style>
 </head>
 <body>
-
-<div id="game-container">
-  <canvas id="gameCanvas" width="300" height="300"></canvas>
-  <div>
-    <button id="feedBtn">🍎 Alimentar</button>
-    <button id="cleanBtn">🧼 Limpiar</button>
-    <button id="sleepBtn">💤 Dormir</button>
-    <button id="playBtn">🎮 Jugar</button>
-  </div>
-  <div id="stats">
-    Hambre: <span id="hunger">100</span><br />
-    Limpieza: <span id="cleanliness">100</span><br />
-    Energía: <span id="energy">100</span><br />
-    Felicidad: <span id="happiness">100</span>
-  </div>
-</div>
-
+<canvas width="400" height="600"></canvas>
 <script>
-// Datos estado
-let hunger = 100;
-let cleanliness = 100;
-let energy = 100;
-let happiness = 100;
+const canvas = document.querySelector("canvas");
+const ctx = canvas.getContext("2d");
 
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+const WIDTH = canvas.width;
+const HEIGHT = canvas.height;
 
-// Estados y animaciones simples con imágenes dibujadas en canvas
+const gravity = 0.5;
+const jump = -8;
+let birdY = HEIGHT / 2;
+let birdVelocity = 0;
 
-// Dibuja el cuerpo base de Pou (oval con degradado)
-function drawPouBase() {
-  const grad = ctx.createRadialGradient(150, 150, 30, 150, 150, 140);
-  grad.addColorStop(0, '#ffd67e');
-  grad.addColorStop(1, '#d28e32');
-  ctx.fillStyle = grad;
+const bird = {
+  x: 80,
+  y: birdY,
+  r: 12
+};
+
+const pipes = [];
+const pipeWidth = 50;
+const pipeGap = 120;
+const pipeSpeed = 2;
+let frame = 0;
+
+let groundY = HEIGHT - 50;
+let score = 0;
+let gameOver = false;
+
+// Imagen de suelo (32x32 pixels)
+const groundImg = new Image();
+groundImg.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABjUlEQVRYR+2XPU4DQRiGn5IYUgAhkAhkoAkUgBHoCZRADK4gIqSAJSAFhSAFHm5nnZ2Z1Zz96bXqV6ePq997q+T3TvEVzAdyzLoGoYj6wDWwBYt8Ae9YZ6sBY1oAHuAB9YB/CkvkNZ4HoZYzvtwDQ4FUZidZZgH3loChcA+p5m8xnU3QEM43S5M+DC20jDEbkgce8qA0EnL8CIigB+Q3EzAAXShdNvC6GoU2QeJoRGYTjcMZCGLDGVmFbHhJoYpyRR0qUsKTFqZBmxLMBvDJ2eBX4HrMdmtzbnO4bGZxqAHo3FOcU2kW1loFC0BF1fVCMmbY6ojp7T7sR2S1G0AkxctLTbYkCdxKY7tkTnkK1bWyCa8eJHfxOehKN1tHKXGSmwFjPEzY9PfxZoRbQO12AJfYgfdEXXxXiR5TgyQW4yxuyT6d8eShc4nYN1q7UXjzAL0h+UEET0zAx5gAAAABJRU5ErkJggg==';
+
+function drawBird() {
   ctx.beginPath();
-  ctx.ellipse(150, 150, 100, 130, 0, 0, 2 * Math.PI);
+  ctx.arc(bird.x, bird.y, bird.r, 0, Math.PI * 2);
+  ctx.fillStyle = "yellow";
   ctx.fill();
 }
 
-// Dibuja ojos con parpadeo animado
-let eyeOpen = true;
-let blinkTimer = 0;
-function drawEyes() {
-  ctx.fillStyle = 'white';
-  ctx.beginPath();
-  ctx.ellipse(110, 120, 25, 30, 0, 0, 2 * Math.PI);
-  ctx.ellipse(190, 120, 25, 30, 0, 0, 2 * Math.PI);
-  ctx.fill();
+function drawPipes() {
+  ctx.fillStyle = "green";
+  pipes.forEach(pipe => {
+    ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top);
+    ctx.fillRect(pipe.x, pipe.top + pipeGap, pipeWidth, HEIGHT);
+  });
+}
 
-  ctx.fillStyle = 'black';
-  if(eyeOpen){
-    ctx.beginPath();
-    ctx.ellipse(110, 120, 12, 16, 0, 0, 2 * Math.PI);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(190, 120, 12, 16, 0, 0, 2 * Math.PI);
-    ctx.fill();
-  } else {
-    // Parpadeo (línea negra)
-    ctx.fillRect(95, 115, 30, 5);
-    ctx.fillRect(175, 115, 30, 5);
+function drawGround() {
+  for (let x = 0; x < WIDTH; x += 32) {
+    ctx.drawImage(groundImg, x, groundY);
   }
 }
 
-// Boca que cambia según estado (feliz, triste, cansado, sucio)
-function drawMouth() {
-  ctx.strokeStyle = 'black';
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  if (hunger < 30) {
-    // triste
-    ctx.moveTo(115, 210);
-    ctx.quadraticCurveTo(150, 190, 185, 210);
-  } else if (energy < 30) {
-    // cansado
-    ctx.moveTo(115, 200);
-    ctx.lineTo(185, 200);
-  } else if (cleanliness < 30) {
-    // sucio, boca torcida
-    ctx.moveTo(115, 200);
-    ctx.quadraticCurveTo(150, 220, 185, 200);
-  } else {
-    // feliz
-    ctx.moveTo(115, 200);
-    ctx.quadraticCurveTo(150, 240, 185, 200);
+function drawScore() {
+  ctx.fillStyle = "#fff";
+  ctx.font = "24px sans-serif";
+  ctx.fillText(`Score: ${score}`, 10, 30);
+}
+
+function update() {
+  if (gameOver) return;
+
+  birdVelocity += gravity;
+  bird.y += birdVelocity;
+
+  if (frame % 90 === 0) {
+    const top = Math.random() * (HEIGHT - pipeGap - 150) + 20;
+    pipes.push({ x: WIDTH, top });
   }
-  ctx.stroke();
+
+  pipes.forEach(pipe => {
+    pipe.x -= pipeSpeed;
+
+    // Colisión
+    if (
+      bird.x + bird.r > pipe.x &&
+      bird.x - bird.r < pipe.x + pipeWidth &&
+      (bird.y - bird.r < pipe.top || bird.y + bird.r > pipe.top + pipeGap)
+    ) {
+      gameOver = true;
+    }
+
+    if (pipe.x + pipeWidth === bird.x) {
+      score++;
+    }
+  });
+
+  // Choca con el suelo
+  if (bird.y + bird.r > groundY) {
+    gameOver = true;
+  }
+
+  // Quita tubos que salieron
+  while (pipes.length && pipes[0].x + pipeWidth < 0) {
+    pipes.shift();
+  }
+
+  frame++;
 }
 
-// Mejillas (color rojo)
-function drawCheeks() {
-  ctx.fillStyle = 'rgba(255, 50, 50, 0.5)';
-  ctx.beginPath();
-  ctx.ellipse(80, 170, 25, 18, 0, 0, 2 * Math.PI);
-  ctx.ellipse(220, 170, 25, 18, 0, 0, 2 * Math.PI);
-  ctx.fill();
+function draw() {
+  ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  drawPipes();
+  drawGround();
+  drawBird();
+  drawScore();
+  if (gameOver) {
+    ctx.fillStyle = "red";
+    ctx.font = "36px sans-serif";
+    ctx.fillText("Game Over", WIDTH / 2 - 100, HEIGHT / 2);
+  }
 }
 
-// Dibuja detalles como nariz
-function drawNose() {
-  ctx.fillStyle = '#d28e32';
-  ctx.beginPath();
-  ctx.moveTo(150, 140);
-  ctx.lineTo(140, 170);
-  ctx.lineTo(160, 170);
-  ctx.closePath();
-  ctx.fill();
+function loop() {
+  update();
+  draw();
+  if (!gameOver) {
+    requestAnimationFrame(loop);
+  }
 }
 
-// Dibuja Pou completo
-function drawPou() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawPouBase();
-  drawCheeks();
-  drawEyes();
-  drawNose();
-  drawMouth();
-}
+window.addEventListener("keydown", () => {
+  if (!gameOver) birdVelocity = jump;
+});
 
-// Actualiza valores en UI
-function updateStatsUI() {
-  document.getElementById('hunger').textContent = Math.round(hunger);
-  document.getElementById('cleanliness').textContent = Math.round(cleanliness);
-  document.getElementById('energy').textContent = Math.round(energy);
-  document.getElementById('happiness').textContent = Math.round(happiness);
-}
-
-// Funciones acciones
-function feed() {
-  hunger += 30;
-  if(hunger > 100) hunger = 100;
-  happiness += 10;
-  if(happiness > 100) happiness = 100;
-  energy -= 5;
-  if(energy < 0) energy = 0;
-  drawPou();
-  updateStatsUI();
-  playSound(eatSound);
-}
-
-function clean() {
-  cleanliness += 40;
-  if(cleanliness > 100) cleanliness = 100;
-  happiness += 5;
-  if(happiness > 100) happiness = 100;
-  energy -= 5;
-  if(energy < 0) energy = 0;
-  drawPou();
-  updateStatsUI();
-  playSound(cleanSound);
-}
-
-function sleep() {
-  energy += 50;
-  if(energy > 100) energy = 100;
-  hunger -= 10;
-  if(hunger < 0) hunger = 0;
-  happiness += 5;
-  if(happiness > 100) happiness = 100;
-  drawPou();
-  updateStatsUI();
-  playSound(sleepSound);
-}
-
-function playGame() {
-  happiness += 30;
-  if(happiness > 100) happiness = 100;
-  energy -= 20;
-  if(energy < 0) energy = 0;
-  hunger -= 10;
-  if(hunger < 0) hunger = 0;
-  cleanliness -= 10;
-  if(cleanliness < 0) cleanliness = 0;
-  drawPou();
-  updateStatsUI();
-  playSound(playSoundEffect);
-}
-
-// Sonidos embebidos base64 para acciones
-const eatSound = new Audio("data:audio/wav;base64,UklGRjQAAABXQVZFZm10IBAAAAABAAEARKwAABCxAgAEABAAZGF0YQAAAAA=");
-const cleanSound = new Audio("data:audio/wav;base64,UklGRhQAAABXQVZFZm10IBAAAAABAAEARKwAABCxAgAEABAAZGF0YQAAAAA=");
-const sleepSound = new Audio("data:audio/wav;base64,UklGRgAAAABXQVZFZm10IBAAAAABAAEARKwAABCxAgAEABAAZGF0YQAAAAA=");
-const playSoundEffect = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAABCxAgAEABAAZGF0YQAAAAA=");
-
-function playSound(sound) {
-  sound.currentTime = 0;
-  sound.play();
-}
-
-// Estadísticas bajan con el tiempo
-function decreaseStats() {
-  hunger -= 0.5;
-  cleanliness -= 0.3;
-  energy -= 0.4;
-  happiness -= 0.2;
-
-  if(hunger < 0) hunger = 0;
-  if(cleanliness < 0) cleanliness = 0;
-  if(energy < 0) energy = 0;
-  if(happiness < 0) happiness = 0;
-
-  updateStatsUI();
-}
-
-// Parpadeo ojos cada 4 segundos
-function blink() {
-  eyeOpen = false;
-  drawPou();
-  setTimeout(() => {
-    eyeOpen = true;
-    drawPou();
-  }, 300);
-}
-
-setInterval(blink, 4000);
-setInterval(() => {
-  decreaseStats();
-  drawPou();
-}, 3000);
-
-// Botones
-document.getElementById('feedBtn').onclick = feed;
-document.getElementById('cleanBtn').onclick = clean;
-document.getElementById('sleepBtn').onclick = sleep;
-document.getElementById('playBtn').onclick = playGame;
-
-// Inicia el juego dibujando el Pou y actualizando stats
-drawPou();
-updateStatsUI();
-
+groundImg.onload = () => {
+  loop();
+};
 </script>
 </body>
 </html>
