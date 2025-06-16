@@ -1,188 +1,151 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Esquiva Mangonio</title>
   <style>
     body {
       margin: 0;
-      background: #def;
       overflow: hidden;
+      font-family: sans-serif;
+      background: #87ceeb; /* cielo azul */
     }
     canvas {
       display: block;
-      margin: auto;
-      background: #b2ebf2;
-      border: 5px solid #333;
+      background: #fdf4c3; /* piso color arena */
+      border-top: 5px solid #000;
     }
-    #gameOver, #winMessage {
+    #skinSelector {
       position: absolute;
-      top: 30%;
-      width: 100%;
-      text-align: center;
-      font-size: 2em;
-      color: red;
-      display: none;
-    }
-    #score {
-      position: absolute;
-      top: 10px;
-      left: 20px;
-      font-size: 20px;
-      font-weight: bold;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
     }
   </style>
 </head>
 <body>
-  <div id="gameOver"> Haz muerto Mangonio esta muy triste😭 <br>Presiona "R" para reiniciar</div>
-  <div id="winMessage"> Ganaste Mangonio esta orgulloso🙉 <br>Puntaje máximo alcanzado</div>
-  <div id="score">Puntos: 0</div>
-  <canvas id="game" width="800" height="300"></canvas>
+  <canvas id="game"></canvas>
+  <div id="skinSelector">
+    <label for="skin">Selecciona skin:</label>
+    <select id="skin">
+      <option value="mangonio.png">Mangonio</option>
+      <option value="mangoniofino.png">Mangonio Fino</option>
+    </select>
+  </div>
   <script>
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
-    const scoreDisplay = document.getElementById("score");
-    const gameOverText = document.getElementById("gameOver");
-    const winMessage = document.getElementById("winMessage");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight - 100;
 
-    const mangonioImg = new Image();
-    mangonioImg.src = "mangonio.png";
+    let score = 0;
+    let speed = 4;
+    let gravity = 0.8;
+    let jumpPower = -15;
+    let playerY = canvas.height - 150;
+    let playerVY = 0;
+    let isJumping = false;
+    let gameOver = false;
+    let playerImg = new Image();
+    playerImg.src = "mangonio.png";
 
-    const goal = 2500;
-    const floorHeight = 60;
+    document.getElementById('skin').addEventListener('change', (e) => {
+      playerImg.src = e.target.value;
+    });
 
-    let mangonio, obstacles, speed, frame, score, gameOver, youWin;
+    let cactus = [];
 
-    function resetGame() {
-      mangonio = {
-        x: 60,
-        y: canvas.height - floorHeight - 60,
-        width: 50,
-        height: 70,
-        vy: 0,
-        jumpPower: -13,
-        gravity: 0.9,
-        grounded: true
-      };
-      obstacles = [];
-      speed = 6;
-      frame = 0;
-      score = 0;
-      gameOver = false;
-      youWin = false;
-      gameOverText.style.display = "none";
-      winMessage.style.display = "none";
-      scoreDisplay.textContent = "Puntos: 0";
-      requestAnimationFrame(update);
+    function addCactus() {
+      cactus.push({ x: canvas.width + Math.random() * 500, y: canvas.height - 100 });
     }
 
-    function drawFloor() {
-      ctx.fillStyle = "#f5deb3";
-      ctx.fillRect(0, canvas.height - floorHeight, canvas.width, floorHeight);
+    for (let i = 0; i < 5; i++) addCactus();
+
+    function drawPlayer() {
+      ctx.drawImage(playerImg, 100, playerY, 80, 100);
     }
 
-    function drawMangonio() {
-      ctx.drawImage(mangonioImg, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
+    function drawCactus() {
+      ctx.fillStyle = "green";
+      cactus.forEach((c) => {
+        ctx.fillRect(c.x, c.y, 30, 60);
+      });
     }
 
-    function drawCactus(cactus) {
-      ctx.fillStyle = "#2e8b57";
-      ctx.fillRect(cactus.x, cactus.y, cactus.width, cactus.height);
-      ctx.fillRect(cactus.x - 10, cactus.y + 10, 8, 20);
-      ctx.fillRect(cactus.x + cactus.width, cactus.y + 10, 8, 20);
+    function checkCollision() {
+      cactus.forEach((c) => {
+        if (
+          100 < c.x + 30 &&
+          100 + 80 > c.x &&
+          playerY < c.y + 60 &&
+          playerY + 100 > c.y
+        ) {
+          gameOver = true;
+        }
+      });
+    }
+
+    function drawScore() {
+      ctx.fillStyle = "black";
+      ctx.font = "24px sans-serif";
+      ctx.fillText("Puntos: " + score, 20, 30);
     }
 
     function drawWin() {
-      ctx.font = "30px Arial";
-      ctx.fillStyle = "purple";
-      ctx.fillText("🎂", canvas.width / 2 - 15, canvas.height / 2);
-      for (let i = 0; i < 100; i++) {
-        ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 50%)`;
-        ctx.beginPath();
-        ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      ctx.fillStyle = "#ff69b4";
+      ctx.font = "40px sans-serif";
+      ctx.fillText("¡Ganaste! 🎉🎂", canvas.width / 2 - 140, canvas.height / 2);
     }
 
-    function update() {
-      if (gameOver || youWin) return;
-
+    function gameLoop() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawFloor();
 
-      // física
-      mangonio.vy += mangonio.gravity;
-      mangonio.y += mangonio.vy;
+      if (!gameOver && score < 2500) {
+        drawPlayer();
+        drawCactus();
+        drawScore();
 
-      if (mangonio.y >= canvas.height - floorHeight - mangonio.height) {
-        mangonio.y = canvas.height - floorHeight - mangonio.height;
-        mangonio.vy = 0;
-        mangonio.grounded = true;
-      }
+        playerVY += gravity;
+        playerY += playerVY;
 
-      drawMangonio();
+        if (playerY > canvas.height - 150) {
+          playerY = canvas.height - 150;
+          isJumping = false;
+        }
 
-      if (frame % 60 === 0) {
-        obstacles.push({
-          x: canvas.width,
-          y: canvas.height - floorHeight - 50,
-          width: 20,
-          height: 50
+        cactus.forEach((c) => {
+          c.x -= speed;
+          if (c.x < -30) {
+            c.x = canvas.width + Math.random() * 500;
+            score++;
+            if (score % 50 === 0) speed += 0.5;
+          }
         });
-      }
 
-      for (let i = 0; i < obstacles.length; i++) {
-        let c = obstacles[i];
-        c.x -= speed;
-        drawCactus(c);
-
-        if (
-          mangonio.x < c.x + c.width &&
-          mangonio.x + mangonio.width > c.x &&
-          mangonio.y + mangonio.height > c.y
-        ) {
-          gameOver = true;
-          gameOverText.style.display = "block";
-          return;
-        }
-      }
-
-      obstacles = obstacles.filter(c => c.x + c.width > 0);
-
-      frame++;
-      if (frame % 5 === 0) {
-        score++;
-        scoreDisplay.textContent = `Puntos: ${score}`;
-
-        if (score % 100 === 0 && speed < 16) {
-          speed += 0.5;
-        }
-      }
-
-      if (score >= goal) {
-        youWin = true;
-        winMessage.style.display = "block";
+        checkCollision();
+        requestAnimationFrame(gameLoop);
+      } else if (score >= 2500) {
         drawWin();
-        return;
+      } else {
+        ctx.fillStyle = "red";
+        ctx.font = "30px sans-serif";
+        ctx.fillText("¡Perdiste!", canvas.width / 2 - 70, canvas.height / 2);
       }
-
-      requestAnimationFrame(update);
     }
 
-    window.addEventListener("keydown", e => {
-      if (e.code === "Space" && mangonio.grounded && !gameOver && !youWin) {
-        mangonio.vy = mangonio.jumpPower;
-        mangonio.grounded = false;
-      }
-      if (e.code === "KeyR" && (gameOver || youWin)) {
-        resetGame();
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space" && !isJumping && !gameOver) {
+        playerVY = jumpPower;
+        isJumping = true;
       }
     });
 
-    // Solo empieza el juego cuando se haya cargado la imagen de Mangonio
-    mangonioImg.onload = () => {
-      resetGame();
-    };
+    playerImg.onload = () => gameLoop();
   </script>
 </body>
 </html>
