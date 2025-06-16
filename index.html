@@ -7,17 +7,13 @@
     body {
       margin: 0;
       background: #def;
-      font-family: sans-serif;
       overflow: hidden;
-      position: relative;
     }
     canvas {
       display: block;
       margin: auto;
       background: #b2ebf2;
       border: 5px solid #333;
-      position: relative;
-      z-index: 1;
     }
     #gameOver, #winMessage {
       position: absolute;
@@ -27,7 +23,6 @@
       font-size: 2em;
       color: red;
       display: none;
-      z-index: 2;
     }
     #score {
       position: absolute;
@@ -35,12 +30,11 @@
       left: 20px;
       font-size: 20px;
       font-weight: bold;
-      z-index: 2;
     }
   </style>
 </head>
 <body>
-  <div id="gameOver"> ¡GAME OVER! <br>Presiona "R" para reiniciar</div>
+  <div id="gameOver">💥 ¡GAME OVER! <br>Presiona "R" para reiniciar</div>
   <div id="winMessage">🎉 ¡Felicidades, ganaste! 🎂<br>Puntaje máximo alcanzado</div>
   <div id="score">Puntos: 0</div>
   <canvas id="game" width="800" height="300"></canvas>
@@ -51,23 +45,27 @@
     const gameOverText = document.getElementById("gameOver");
     const winMessage = document.getElementById("winMessage");
 
+    const mangonioImg = new Image();
+    mangonioImg.src = "mangonio.png";
+
+    const goal = 2500;
+    const floorHeight = 60;
+
     let mangonio, obstacles, speed, frame, score, gameOver, youWin;
-    const goal = 1500;
-    const floorHeight = 60; // altura del piso
 
     function resetGame() {
       mangonio = {
         x: 60,
-        y: canvas.height - floorHeight - 60, // 60 es altura Mangonio
-        width: 40,
-        height: 60,
+        y: canvas.height - floorHeight - 60,
+        width: 50,
+        height: 70,
         vy: 0,
         jumpPower: -13,
         gravity: 0.9,
         grounded: true
       };
       obstacles = [];
-      speed = 12; // velocidad rápida
+      speed = 6; // velocidad inicial más lenta
       frame = 0;
       score = 0;
       gameOver = false;
@@ -79,36 +77,12 @@
     }
 
     function drawFloor() {
-      ctx.fillStyle = "#f5deb3"; // amarillo claro tipo arena (wheat)
+      ctx.fillStyle = "#f5deb3";
       ctx.fillRect(0, canvas.height - floorHeight, canvas.width, floorHeight);
     }
 
     function drawMangonio() {
-      const { x, y } = mangonio;
-      // Cuerpo
-      ctx.fillStyle = "#ffcc33";
-      ctx.beginPath();
-      ctx.ellipse(x + 20, y + 30, 22, 30, 0.3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "#996600";
-      ctx.stroke();
-
-      // Hoja
-      ctx.fillStyle = "#228B22";
-      ctx.beginPath();
-      ctx.ellipse(x + 25, y + 5, 10, 4, 0.3, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Carita
-      ctx.fillStyle = "black";
-      ctx.beginPath();
-      ctx.arc(x + 15, y + 25, 2.5, 0, Math.PI * 2);
-      ctx.arc(x + 26, y + 25, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.arc(x + 20, y + 38, 5, 0, Math.PI);
-      ctx.stroke();
+      ctx.drawImage(mangonioImg, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
     }
 
     function drawCactus(cactus) {
@@ -122,8 +96,6 @@
       ctx.font = "30px Arial";
       ctx.fillStyle = "purple";
       ctx.fillText("🎂", canvas.width / 2 - 15, canvas.height / 2);
-
-      // confeti
       for (let i = 0; i < 100; i++) {
         ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 50%)`;
         ctx.beginPath();
@@ -136,14 +108,12 @@
       if (gameOver || youWin) return;
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
       drawFloor();
 
       // física
       mangonio.vy += mangonio.gravity;
       mangonio.y += mangonio.vy;
 
-      // piso
       if (mangonio.y >= canvas.height - floorHeight - mangonio.height) {
         mangonio.y = canvas.height - floorHeight - mangonio.height;
         mangonio.vy = 0;
@@ -152,7 +122,6 @@
 
       drawMangonio();
 
-      // obstáculos
       if (frame % 60 === 0) {
         obstacles.push({
           x: canvas.width,
@@ -184,6 +153,10 @@
       if (frame % 5 === 0) {
         score++;
         scoreDisplay.textContent = `Puntos: ${score}`;
+
+        if (score % 100 === 0 && speed < 16) {
+          speed += 0.5; // sube un poco la velocidad cada 100 puntos
+        }
       }
 
       if (score >= goal) {
