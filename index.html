@@ -65,7 +65,7 @@
         grounded: true
       };
       obstacles = [];
-      speed = 6; // velocidad inicial más lenta
+      speed = 6;
       frame = 0;
       score = 0;
       gameOver = false;
@@ -73,7 +73,7 @@
       gameOverText.style.display = "none";
       winMessage.style.display = "none";
       scoreDisplay.textContent = "Puntos: 0";
-      update();
+      requestAnimationFrame(update);
     }
 
     function drawFloor() {
@@ -155,7 +155,7 @@
         scoreDisplay.textContent = `Puntos: ${score}`;
 
         if (score % 100 === 0 && speed < 16) {
-          speed += 0.5; // sube un poco la velocidad cada 100 puntos
+          speed += 0.5;
         }
       }
 
@@ -179,7 +179,10 @@
       }
     });
 
-    resetGame();
+    // Solo empieza el juego cuando se haya cargado la imagen de Mangonio
+    mangonioImg.onload = () => {
+      resetGame();
+    };
   </script>
 </body>
 </html>
