@@ -62,15 +62,13 @@
     const skinSelector = document.getElementById("skinSelector");
 
     const mangonioImg = new Image();
-    let currentSkin = skinSelector.value;
-    mangonioImg.src = currentSkin;
+    mangonioImg.src = skinSelector.value;
 
     const goal = 2500;
     const floorHeight = 60;
 
-    function getDeathSkin(skin) {
-      return skin.replace('.png', '1.png');
-    }
+    let mangonio, obstacles, speed, frame, score, gameOver, youWin;
+    let speedStartTime = 0;
 
     function resetGame() {
       mangonio = {
@@ -96,10 +94,102 @@
       requestAnimationFrame(update);
     }
 
-    skinSelector.addEventListener("change", () => {
-      currentSkin = skinSelector.value;
-      mangonioImg.src = currentSkin;
-    });
+    function drawFloor() {
+      ctx.fillStyle = "#f5deb3";
+      ctx.fillRect(0, canvas.height - floorHeight, canvas.width, floorHeight);
+    }
+
+    function drawMangonio() {
+      ctx.drawImage(mangonioImg, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
+    }
+
+    function drawCactus(cactus) {
+      ctx.fillStyle = "#2e8b57";
+      ctx.fillRect(cactus.x, cactus.y, cactus.width, cactus.height);
+      ctx.fillRect(cactus.x - 10, cactus.y + 10, 8, 20);
+      ctx.fillRect(cactus.x + cactus.width, cactus.y + 10, 8, 20);
+    }
+
+    function drawWin() {
+      ctx.font = "30px Arial";
+      ctx.fillStyle = "purple";
+      ctx.fillText("🎂", canvas.width / 2 - 15, canvas.height / 2);
+      for (let i = 0; i < 100; i++) {
+        ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 50%)`;
+        ctx.beginPath();
+        ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function update() {
+      if (gameOver || youWin) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawFloor();
+
+      mangonio.vy += mangonio.gravity;
+      mangonio.y += mangonio.vy;
+
+      if (mangonio.y >= canvas.height - floorHeight - mangonio.height) {
+        mangonio.y = canvas.height - floorHeight - mangonio.height;
+        mangonio.vy = 0;
+        mangonio.grounded = true;
+      }
+
+      drawMangonio();
+
+      if (frame % 60 === 0) {
+        obstacles.push({
+          x: canvas.width,
+          y: canvas.height - floorHeight - 50,
+          width: 20,
+          height: 50
+        });
+      }
+
+      for (let i = 0; i < obstacles.length; i++) {
+        let c = obstacles[i];
+        c.x -= speed;
+        drawCactus(c);
+
+        if (
+          mangonio.x < c.x + c.width &&
+          mangonio.x + mangonio.width > c.x &&
+          mangonio.y + mangonio.height > c.y
+        ) {
+          gameOver = true;
+          gameOverText.style.display = "block";
+          return;
+        }
+      }
+
+      obstacles = obstacles.filter(c => c.x + c.width > 0);
+
+      frame++;
+
+      const elapsedSeconds = (performance.now() - speedStartTime) / 1000;
+      if (elapsedSeconds > 10 && speed < 8) {
+        speed = 8;
+      }
+
+      if (frame % 5 === 0) {
+        score++;
+        scoreDisplay.textContent = `Puntos: ${score}`;
+        if (score % 100 === 0 && speed < 16) {
+          speed += 0.5;
+        }
+      }
+
+      if (score >= goal) {
+        youWin = true;
+        winMessage.style.display = "block";
+        drawWin();
+        return;
+      }
+
+      requestAnimationFrame(update);
+    }
 
     window.addEventListener("keydown", e => {
       if (e.code === "Space" && mangonio.grounded && !gameOver && !youWin) {
@@ -109,6 +199,10 @@
       if (e.code === "KeyR" && (gameOver || youWin)) {
         resetGame();
       }
+    });
+
+    skinSelector.addEventListener("change", () => {
+      mangonioImg.src = skinSelector.value;
     });
 
     mangonioImg.onload = () => {
