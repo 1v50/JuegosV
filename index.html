@@ -1,21 +1,21 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Esquiva Mangonio</title>
   <style>
     body {
       margin: 0;
-      background: #b3e0ff; /* azul clarito */
+      background-color: #cceeff; /* azul clarito */
       font-family: Arial, sans-serif;
     }
     #gameContainer {
       position: relative;
+      margin: 20px auto;
       width: 800px;
       height: 400px;
-      background: #d4f1f9; /* suelo más claro */
-      border: 2px solid #333;
-      margin: 0 auto;
+      background-color: #f0e6d2;
+      border: 3px solid #5c432d;
       overflow: hidden;
     }
     canvas {
@@ -23,259 +23,267 @@
     }
     #skinSelector {
       text-align: center;
-      padding: 10px;
+      margin: 10px auto;
     }
     button {
       margin: 0 5px;
       padding: 6px 12px;
-      font-weight: bold;
-      background-color: #338;
+      cursor: pointer;
+      background-color: #5c432d;
       color: white;
       border: none;
-      border-radius: 5px;
+      border-radius: 4px;
+      font-weight: bold;
     }
     button.selected {
-      background-color: #44a;
+      background-color: #9b7c3a;
+    }
+    #controls {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.6);
+      padding: 5px;
+      border-radius: 5px;
+    }
+    .ctrl-btn {
+      margin: 5px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      font-weight: bold;
+      font-size: 20px;
+    }
+    #scoreDisplay {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.7);
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
-<div id="skinSelector">
-  <button id="skinMangonio" class="selected">Mangonio</button>
-  <button id="skinFino">Mangonio Fino</button>
-  <button id="skinRene">René</button>
-</div>
-<div id="gameContainer">
-  <canvas id="gameCanvas" width="800" height="400"></canvas>
-</div>
-
+  <div id="skinSelector">
+    <button id="skinDefault" class="selected">Mangonio</button>
+    <button id="skinFino">Mangonio Fino</button>
+    <button id="skinRene">René</button>
+  </div>
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <div id="controls">
+      ↑ Espacio / Flecha arriba (saltar)<br>
+      ↓ Flecha abajo / B (agacharse)<br>
+      R (reiniciar), T (nivel siguiente)
+    </div>
+    <div id="scoreDisplay">Puntaje: 0</div>
+  </div>
 <script>
 (() => {
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
+  const scoreDisplay = document.getElementById('scoreDisplay');
 
   const groundY = 350;
   let gameOver = false;
-  let level = 1;
   let score = 0;
-  let shield = 100;
-  let obstacles = [];
-  let bottles = [];
-  let cactusCount = 0;
+  let level = 1;
+  let obstacleSpeed = 3;
+  let obstacleFrequency = 0.01;
+  let waterCounter = 0;
+  let hydration = 100;
+  let hydrationTimer = 0;
 
   const skins = {
-    mangonio: { alive: 'mangonio.png', dead: 'mangonio1.png' },
-    mangoniofino: { alive: 'mangoniofino.png', dead: 'mangoniofino1.png' },
-    rene: { alive: 'rene.png', dead: 'rene1.png' }
+    mangonio: ['mangonio.png', 'mangonio1.png'],
+    mangoniofino: ['mangoniofino.png', 'mangoniofino1.png'],
+    "René": ['rene.png', 'rene1.png']
   };
   let currentSkin = localStorage.getItem('selectedSkin') || 'mangonio';
+  let currentImg = new Image();
+  let deadImg = new Image();
+  currentImg.src = skins[currentSkin][0];
+  deadImg.src = skins[currentSkin][1];
 
-  const skinButtons = {
-    mangonio: document.getElementById('skinMangonio'),
-    mangoniofino: document.getElementById('skinFino'),
-    rene: document.getElementById('skinRene'),
-  };
-
-  Object.keys(skinButtons).forEach(skin => {
-    skinButtons[skin].addEventListener('click', () => {
-      currentSkin = skin;
-      localStorage.setItem('selectedSkin', currentSkin);
-      updateSkinButtons();
-    });
-  });
-
-  function updateSkinButtons() {
-    Object.keys(skinButtons).forEach(skin => {
-      skinButtons[skin].classList.toggle('selected', currentSkin === skin);
-    });
-  }
-
-  const playerImg = new Image();
-  const playerDeadImg = new Image();
-  playerImg.src = skins[currentSkin].alive;
-  playerDeadImg.src = skins[currentSkin].dead;
-
-  let player = {
+  const player = {
     x: 100,
     y: groundY - 50,
     width: 50,
     height: 50,
     dy: 0,
-    gravity: 0.8,
-    jumpStrength: 14.25, // 5% menos que antes
     jumping: false,
     crouching: false,
-    alive: true,
-    updateSkin: function () {
-      playerImg.src = skins[currentSkin].alive;
-      playerDeadImg.src = skins[currentSkin].dead;
-    }
+    jumpStrength: 14.25,
+    gravity: 0.8,
+    shield: 100,
+    isDead: false
   };
-  player.updateSkin();
+
+  function updateSkinButtons() {
+    document.querySelectorAll('#skinSelector button').forEach(btn => btn.classList.remove('selected'));
+    document.getElementById('skinDefault').classList.toggle('selected', currentSkin === 'mangonio');
+    document.getElementById('skinFino').classList.toggle('selected', currentSkin === 'mangoniofino');
+    document.getElementById('skinRene').classList.toggle('selected', currentSkin === 'René');
+  }
+
+  document.getElementById('skinDefault').onclick = () => {
+    currentSkin = 'mangonio';
+    localStorage.setItem('selectedSkin', currentSkin);
+    currentImg.src = skins[currentSkin][0];
+    deadImg.src = skins[currentSkin][1];
+    updateSkinButtons();
+  };
+  document.getElementById('skinFino').onclick = () => {
+    currentSkin = 'mangoniofino';
+    localStorage.setItem('selectedSkin', currentSkin);
+    currentImg.src = skins[currentSkin][0];
+    deadImg.src = skins[currentSkin][1];
+    updateSkinButtons();
+  };
+  document.getElementById('skinRene').onclick = () => {
+    currentSkin = 'René';
+    localStorage.setItem('selectedSkin', currentSkin);
+    currentImg.src = skins[currentSkin][0];
+    deadImg.src = skins[currentSkin][1];
+    updateSkinButtons();
+  };
+  updateSkinButtons();
+
+  let obstacles = [];
+  let waters = [];
 
   function createObstacle() {
-    obstacles.push({
-      x: canvas.width,
-      y: groundY - 50,
-      width: 20,
-      height: 50
-    });
-    cactusCount++;
-    if ([2, 3, 4, 5].includes(level) && cactusCount % 5 === 0) {
-      bottles.push({
-        x: canvas.width,
-        y: groundY - 70,
-        width: 20,
-        height: 30
-      });
+    obstacles.push({ x: canvas.width, y: groundY - 50, width: 20, height: 50 });
+    waterCounter++;
+    if ((level >= 2) && waterCounter % 5 === 0) {
+      waters.push({ x: canvas.width, y: groundY - 30, width: 20, height: 30 });
     }
-  }
-
-  function drawObstacle(obs) {
-    ctx.fillStyle = 'green';
-    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-    ctx.fillStyle = '#0c0c0c';
-    for (let i = 0; i < 6; i++) {
-      ctx.beginPath();
-      ctx.arc(obs.x + Math.random() * 20, obs.y + Math.random() * 50, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  function drawBottle(bottle) {
-    ctx.fillStyle = 'skyblue';
-    ctx.fillRect(bottle.x, bottle.y, bottle.width, bottle.height);
-  }
-
-  function drawShieldBar() {
-    ctx.fillStyle = 'lightblue';
-    ctx.fillRect(10, 10, shield * 2, 10);
-    ctx.strokeStyle = 'black';
-    ctx.strokeRect(10, 10, 200, 10);
   }
 
   function drawPlayer() {
-    const img = player.alive ? playerImg : playerDeadImg;
+    const img = player.isDead ? deadImg : currentImg;
     ctx.drawImage(img, player.x, player.y, player.width, player.height);
   }
 
   function updatePlayer() {
-    if (player.crouching) return;
-    player.y += player.dy;
-    player.dy += player.gravity;
-
-    if (player.y >= groundY - player.height) {
-      player.y = groundY - player.height;
-      player.dy = 0;
-      player.jumping = false;
+    if (!player.isDead) {
+      player.y += player.dy;
+      player.dy += player.gravity;
+      if (player.y > groundY - player.height) {
+        player.y = groundY - player.height;
+        player.jumping = false;
+      }
     }
   }
 
   function detectCollisions() {
     for (let obs of obstacles) {
-      if (
-        player.x < obs.x + obs.width &&
-        player.x + player.width > obs.x &&
-        player.y < obs.y + obs.height &&
-        player.y + player.height > obs.y
-      ) {
-        if (shield > 0) {
-          shield -= 20;
-          obs.x = -100;
-        } else {
-          player.alive = false;
-          gameOver = true;
-        }
+      if (player.x < obs.x + obs.width && player.x + player.width > obs.x && player.y < obs.y + obs.height && player.y + player.height > obs.y) {
+        player.isDead = true;
       }
     }
-
-    for (let bottle of bottles) {
-      if (
-        player.x < bottle.x + bottle.width &&
-        player.x + player.width > bottle.x &&
-        player.y < bottle.y + bottle.height &&
-        player.y + player.height > bottle.y
-      ) {
-        shield = Math.min(shield + 30, 100);
-        bottle.x = -100;
+    for (let i = waters.length - 1; i >= 0; i--) {
+      const w = waters[i];
+      if (player.x < w.x + w.width && player.x + player.width > w.x && player.y < w.y + w.height && player.y + player.height > w.y) {
+        hydration = Math.min(100, hydration + 25);
+        waters.splice(i, 1);
       }
     }
-  }
-
-  function resetGame() {
-    player.alive = true;
-    player.updateSkin();
-    player.y = groundY - player.height;
-    player.dy = 0;
-    shield = 100;
-    obstacles = [];
-    bottles = [];
-    cactusCount = 0;
-    gameOver = false;
   }
 
   window.addEventListener('keydown', e => {
-    if ((e.code === 'Space' || e.code === 'ArrowUp') && !player.jumping && player.alive) {
+    if ((e.code === 'Space' || e.code === 'ArrowUp') && !player.jumping && !player.isDead) {
       player.dy = -player.jumpStrength;
       player.jumping = true;
-    }
-    if (e.code === 'ArrowDown' || e.code === 'KeyB') {
+    } else if (e.code === 'ArrowDown' || e.code === 'KeyB') {
+      player.height = 30;
       player.crouching = true;
-      player.height = 25;
-    }
-    if (e.code === 'KeyR') resetGame();
-    if (e.code === 'KeyT') {
-      if (level < 5) level++;
-      resetGame();
+    } else if (e.code === 'KeyT') {
+      level++;
+      resetLevel();
+    } else if (e.code === 'KeyR') {
+      resetLevel();
     }
   });
 
   window.addEventListener('keyup', e => {
     if (e.code === 'ArrowDown' || e.code === 'KeyB') {
-      player.crouching = false;
       player.height = 50;
-      player.y = groundY - player.height;
+      player.crouching = false;
     }
   });
 
+  function simulateKey(code) {
+    const e = new KeyboardEvent('keydown', { code });
+    window.dispatchEvent(e);
+  }
+
+  function resetLevel() {
+    player.y = groundY - 50;
+    player.dy = 0;
+    player.jumping = false;
+    player.isDead = false;
+    player.shield = 100;
+    hydration = 100;
+    hydrationTimer = 0;
+    obstacles = [];
+    waters = [];
+    score = 0;
+    obstacleSpeed = 3 + level;
+    obstacleFrequency = 0.01 + (level * 0.002);
+  }
+  resetLevel();
+
   function update() {
-    if (gameOver) return;
-    if (Math.random() < 0.02) createObstacle();
-
-    for (let obs of obstacles) obs.x -= 3;
-    for (let b of bottles) b.x -= 3;
-
-    obstacles = obstacles.filter(o => o.x + o.width > 0);
-    bottles = bottles.filter(b => b.x + b.width > 0);
-
-    updatePlayer();
-    detectCollisions();
-    score += 0.1;
+    if (!player.isDead) {
+      if (Math.random() < obstacleFrequency) createObstacle();
+      for (let obs of obstacles) obs.x -= obstacleSpeed;
+      for (let w of waters) w.x -= obstacleSpeed;
+      updatePlayer();
+      detectCollisions();
+      if (level > 1) {
+        hydrationTimer++;
+        if (hydrationTimer >= 300) {
+          hydration -= 5;
+          hydrationTimer = 0;
+          if (hydration <= 0) player.isDead = true;
+        }
+      }
+      obstacles = obstacles.filter(o => o.x + o.width > 0);
+      waters = waters.filter(w => w.x + w.width > 0);
+      score += 0.1;
+      scoreDisplay.textContent = 'Puntaje: ' + Math.floor(score);
+    }
   }
 
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#ffd';
-    ctx.fillRect(0, groundY, canvas.width, 50);
+    ctx.fillStyle = '#d9c99b';
+    ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
 
-    drawShieldBar();
+    // Escudo (niv 1) o Hidratación (niv >= 2)
+    ctx.fillStyle = 'blue';
+    if (level === 1) {
+      ctx.fillRect(10, 10, player.shield * 2, 20);
+      ctx.strokeRect(10, 10, 200, 20);
+    } else {
+      ctx.fillRect(10, 10, hydration * 2, 20);
+      ctx.strokeRect(10, 10, 200, 20);
+    }
 
-    for (let obs of obstacles) drawObstacle(obs);
-    for (let b of bottles) drawBottle(b);
+    for (let obs of obstacles) {
+      ctx.fillStyle = 'green';
+      ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+    }
+    for (let w of waters) {
+      const img = new Image();
+      img.src = 'Agua.png';
+      ctx.drawImage(img, w.x, w.y, w.width, w.height);
+    }
 
     drawPlayer();
-
-    ctx.fillStyle = 'black';
-    ctx.fillText(`Nivel: ${level}`, 10, 40);
-    ctx.fillText(`Puntaje: ${Math.floor(score)}`, 10, 60);
-
-    if (gameOver) {
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = 'white';
-      ctx.font = '30px Arial';
-      ctx.fillText('¡Has perdido! Presiona R para reiniciar', 150, 200);
-    }
   }
 
   function loop() {
@@ -283,9 +291,6 @@
     draw();
     requestAnimationFrame(loop);
   }
-
-  player.updateSkin();
-  updateSkinButtons();
   loop();
 })();
 </script>
