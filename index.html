@@ -1,228 +1,293 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Esquiva Mangonio</title>
   <style>
     body {
       margin: 0;
-      background-color: #b3e5fc;
-      font-family: sans-serif;
-      overflow: hidden;
+      background: #b3e0ff; /* azul clarito */
+      font-family: Arial, sans-serif;
     }
     #gameContainer {
       position: relative;
       width: 800px;
       height: 400px;
-      margin: 20px auto;
-      background-color: #d7f9fd;
-      border: 3px solid #444;
+      background: #d4f1f9; /* suelo más claro */
+      border: 2px solid #333;
+      margin: 0 auto;
+      overflow: hidden;
     }
     canvas {
       display: block;
     }
     #skinSelector {
       text-align: center;
-      margin-bottom: 10px;
+      padding: 10px;
     }
-    .skinButton {
+    button {
       margin: 0 5px;
-      padding: 8px 16px;
-      background-color: #2196f3;
+      padding: 6px 12px;
+      font-weight: bold;
+      background-color: #338;
       color: white;
       border: none;
-      border-radius: 4px;
-      cursor: pointer;
+      border-radius: 5px;
     }
-    .skinButton.selected {
-      background-color: #0d47a1;
+    button.selected {
+      background-color: #44a;
     }
   </style>
 </head>
 <body>
-  <div id="skinSelector">
-    <button class="skinButton" data-skin="mangonio">Mangonio</button>
-    <button class="skinButton" data-skin="mangoniofino">Mangonio Fino</button>
-    <button class="skinButton" data-skin="rene">René</button>
-  </div>
-  <div id="gameContainer">
-    <canvas id="gameCanvas" width="800" height="400"></canvas>
-  </div>
+<div id="skinSelector">
+  <button id="skinMangonio" class="selected">Mangonio</button>
+  <button id="skinFino">Mangonio Fino</button>
+  <button id="skinRene">René</button>
+</div>
+<div id="gameContainer">
+  <canvas id="gameCanvas" width="800" height="400"></canvas>
+</div>
 
-  <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const groundY = 350;
-    let score = 0;
-    let level = 1;
-    let obstacleSpeed = 4;
-    let gameOver = false;
+<script>
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
 
-    const skins = {
-      mangonio: ['mangonio.png', 'mangonio1.png'],
-      mangoniofino: ['mangoniofino.png', 'mangoniofino1.png'],
-      rene: ['rene.png', 'rene1.png']
-    };
+  const groundY = 350;
+  let gameOver = false;
+  let level = 1;
+  let score = 0;
+  let shield = 100;
+  let obstacles = [];
+  let bottles = [];
+  let cactusCount = 0;
 
-    let selectedSkin = localStorage.getItem('selectedSkin') || 'mangonio';
-    const playerImage = new Image();
-    const playerDeadImage = new Image();
-    playerImage.src = skins[selectedSkin][0];
-    playerDeadImage.src = skins[selectedSkin][1];
+  const skins = {
+    mangonio: { alive: 'mangonio.png', dead: 'mangonio1.png' },
+    mangoniofino: { alive: 'mangoniofino.png', dead: 'mangoniofino1.png' },
+    rene: { alive: 'rene.png', dead: 'rene1.png' }
+  };
+  let currentSkin = localStorage.getItem('selectedSkin') || 'mangonio';
 
-    const player = {
-      x: 100,
+  const skinButtons = {
+    mangonio: document.getElementById('skinMangonio'),
+    mangoniofino: document.getElementById('skinFino'),
+    rene: document.getElementById('skinRene'),
+  };
+
+  Object.keys(skinButtons).forEach(skin => {
+    skinButtons[skin].addEventListener('click', () => {
+      currentSkin = skin;
+      localStorage.setItem('selectedSkin', currentSkin);
+      updateSkinButtons();
+    });
+  });
+
+  function updateSkinButtons() {
+    Object.keys(skinButtons).forEach(skin => {
+      skinButtons[skin].classList.toggle('selected', currentSkin === skin);
+    });
+  }
+
+  const playerImg = new Image();
+  const playerDeadImg = new Image();
+  playerImg.src = skins[currentSkin].alive;
+  playerDeadImg.src = skins[currentSkin].dead;
+
+  let player = {
+    x: 100,
+    y: groundY - 50,
+    width: 50,
+    height: 50,
+    dy: 0,
+    gravity: 0.8,
+    jumpStrength: 14.25, // 5% menos que antes
+    jumping: false,
+    crouching: false,
+    alive: true,
+    updateSkin: function () {
+      playerImg.src = skins[currentSkin].alive;
+      playerDeadImg.src = skins[currentSkin].dead;
+    }
+  };
+  player.updateSkin();
+
+  function createObstacle() {
+    obstacles.push({
+      x: canvas.width,
       y: groundY - 50,
-      width: 50,
-      height: 50,
-      dy: 0,
-      gravity: 0.8,
-      jumpStrength: 14.25,
-      jumping: false,
-      image: playerImage
-    };
-
-    const obstacles = [];
-
-    function createObstacle() {
-      const height = 40 + Math.random() * 40;
-      obstacles.push({
+      width: 20,
+      height: 50
+    });
+    cactusCount++;
+    if ([2, 3, 4, 5].includes(level) && cactusCount % 5 === 0) {
+      bottles.push({
         x: canvas.width,
-        y: groundY - height,
+        y: groundY - 70,
         width: 20,
-        height: height
+        height: 30
       });
     }
+  }
 
-    function drawObstacle(obs) {
-      ctx.fillStyle = '#2e8b57';
-      ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-      ctx.fillStyle = '#1b5e20';
-      ctx.fillRect(obs.x, obs.y, obs.width / 3, obs.height);
-      ctx.fillStyle = 'black';
-      for (let i = 0; i < 10; i++) {
-        ctx.beginPath();
-        ctx.arc(obs.x + Math.random() * obs.width, obs.y + Math.random() * obs.height, 1, 0, Math.PI * 2);
-        ctx.fill();
-      }
+  function drawObstacle(obs) {
+    ctx.fillStyle = 'green';
+    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+    ctx.fillStyle = '#0c0c0c';
+    for (let i = 0; i < 6; i++) {
+      ctx.beginPath();
+      ctx.arc(obs.x + Math.random() * 20, obs.y + Math.random() * 50, 1.5, 0, Math.PI * 2);
+      ctx.fill();
     }
+  }
 
-    function drawPlayer() {
-      ctx.drawImage(player.image, player.x, player.y, player.width, player.height);
+  function drawBottle(bottle) {
+    ctx.fillStyle = 'skyblue';
+    ctx.fillRect(bottle.x, bottle.y, bottle.width, bottle.height);
+  }
+
+  function drawShieldBar() {
+    ctx.fillStyle = 'lightblue';
+    ctx.fillRect(10, 10, shield * 2, 10);
+    ctx.strokeStyle = 'black';
+    ctx.strokeRect(10, 10, 200, 10);
+  }
+
+  function drawPlayer() {
+    const img = player.alive ? playerImg : playerDeadImg;
+    ctx.drawImage(img, player.x, player.y, player.width, player.height);
+  }
+
+  function updatePlayer() {
+    if (player.crouching) return;
+    player.y += player.dy;
+    player.dy += player.gravity;
+
+    if (player.y >= groundY - player.height) {
+      player.y = groundY - player.height;
+      player.dy = 0;
+      player.jumping = false;
     }
+  }
 
-    function updatePlayer() {
-      player.y += player.dy;
-      player.dy += player.gravity;
-      if (player.y > groundY - player.height) {
-        player.y = groundY - player.height;
-        player.dy = 0;
-        player.jumping = false;
-      }
-    }
-
-    function checkCollision() {
-      for (let obs of obstacles) {
-        if (
-          player.x < obs.x + obs.width &&
-          player.x + player.width > obs.x &&
-          player.y < obs.y + obs.height &&
-          player.y + player.height > obs.y
-        ) {
-          player.image = playerDeadImage;
+  function detectCollisions() {
+    for (let obs of obstacles) {
+      if (
+        player.x < obs.x + obs.width &&
+        player.x + player.width > obs.x &&
+        player.y < obs.y + obs.height &&
+        player.y + player.height > obs.y
+      ) {
+        if (shield > 0) {
+          shield -= 20;
+          obs.x = -100;
+        } else {
+          player.alive = false;
           gameOver = true;
         }
       }
     }
 
-    function resetGame() {
-      player.image = new Image();
-      player.image.src = skins[selectedSkin][0];
-      playerDeadImage.src = skins[selectedSkin][1];
+    for (let bottle of bottles) {
+      if (
+        player.x < bottle.x + bottle.width &&
+        player.x + player.width > bottle.x &&
+        player.y < bottle.y + bottle.height &&
+        player.y + player.height > bottle.y
+      ) {
+        shield = Math.min(shield + 30, 100);
+        bottle.x = -100;
+      }
+    }
+  }
+
+  function resetGame() {
+    player.alive = true;
+    player.updateSkin();
+    player.y = groundY - player.height;
+    player.dy = 0;
+    shield = 100;
+    obstacles = [];
+    bottles = [];
+    cactusCount = 0;
+    gameOver = false;
+  }
+
+  window.addEventListener('keydown', e => {
+    if ((e.code === 'Space' || e.code === 'ArrowUp') && !player.jumping && player.alive) {
+      player.dy = -player.jumpStrength;
+      player.jumping = true;
+    }
+    if (e.code === 'ArrowDown' || e.code === 'KeyB') {
+      player.crouching = true;
+      player.height = 25;
+    }
+    if (e.code === 'KeyR') resetGame();
+    if (e.code === 'KeyT') {
+      if (level < 5) level++;
+      resetGame();
+    }
+  });
+
+  window.addEventListener('keyup', e => {
+    if (e.code === 'ArrowDown' || e.code === 'KeyB') {
+      player.crouching = false;
+      player.height = 50;
       player.y = groundY - player.height;
-      player.dy = 0;
-      player.jumping = false;
-      obstacles.length = 0;
-      score = 0;
-      level = 1;
-      obstacleSpeed = 4;
-      gameOver = false;
     }
+  });
 
-    function update() {
-      if (gameOver) return;
-      updatePlayer();
-      for (let obs of obstacles) obs.x -= obstacleSpeed;
-      if (Math.random() < 0.02) createObstacle();
-      for (let i = obstacles.length - 1; i >= 0; i--) {
-        if (obstacles[i].x + obstacles[i].width < 0) obstacles.splice(i, 1);
-      }
-      checkCollision();
-      score += 1;
-      if (score % 300 === 0) {
-        level++;
-        obstacleSpeed += 0.5;
-      }
+  function update() {
+    if (gameOver) return;
+    if (Math.random() < 0.02) createObstacle();
+
+    for (let obs of obstacles) obs.x -= 3;
+    for (let b of bottles) b.x -= 3;
+
+    obstacles = obstacles.filter(o => o.x + o.width > 0);
+    bottles = bottles.filter(b => b.x + b.width > 0);
+
+    updatePlayer();
+    detectCollisions();
+    score += 0.1;
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#ffd';
+    ctx.fillRect(0, groundY, canvas.width, 50);
+
+    drawShieldBar();
+
+    for (let obs of obstacles) drawObstacle(obs);
+    for (let b of bottles) drawBottle(b);
+
+    drawPlayer();
+
+    ctx.fillStyle = 'black';
+    ctx.fillText(`Nivel: ${level}`, 10, 40);
+    ctx.fillText(`Puntaje: ${Math.floor(score)}`, 10, 60);
+
+    if (gameOver) {
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'white';
+      ctx.font = '30px Arial';
+      ctx.fillText('¡Has perdido! Presiona R para reiniciar', 150, 200);
     }
+  }
 
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#ffe082';
-      ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
 
-      for (let obs of obstacles) drawObstacle(obs);
-
-      drawPlayer();
-
-      ctx.fillStyle = 'black';
-      ctx.font = '18px Arial';
-      ctx.fillText(`Puntaje: ${Math.floor(score)}`, 10, 30);
-      ctx.fillText(`Nivel: ${level}`, 10, 50);
-
-      if (gameOver) {
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = 'white';
-        ctx.font = '32px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('¡Perdiste!', canvas.width / 2, canvas.height / 2 - 20);
-        ctx.font = '16px Arial';
-        ctx.fillText('Presiona ENTER para reiniciar', canvas.width / 2, canvas.height / 2 + 20);
-        ctx.textAlign = 'left';
-      }
-    }
-
-    function loop() {
-      update();
-      draw();
-      requestAnimationFrame(loop);
-    }
-
-    document.addEventListener('keydown', e => {
-      if ((e.code === 'Space' || e.code === 'ArrowUp') && !player.jumping && !gameOver) {
-        player.dy = -player.jumpStrength;
-        player.jumping = true;
-      }
-      if (e.code === 'Enter' && gameOver) resetGame();
-    });
-
-    document.querySelectorAll('.skinButton').forEach(btn => {
-      btn.addEventListener('click', () => {
-        selectedSkin = btn.dataset.skin;
-        localStorage.setItem('selectedSkin', selectedSkin);
-        document.querySelectorAll('.skinButton').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-        player.image.src = skins[selectedSkin][0];
-        playerDeadImage.src = skins[selectedSkin][1];
-      });
-    });
-
-    window.onload = () => {
-      player.image.src = skins[selectedSkin][0];
-      playerDeadImage.src = skins[selectedSkin][1];
-      document.querySelector(`.skinButton[data-skin="${selectedSkin}"]`).classList.add('selected');
-      loop();
-    };
-  </script>
+  player.updateSkin();
+  updateSkinButtons();
+  loop();
+})();
+</script>
 </body>
 </html>
