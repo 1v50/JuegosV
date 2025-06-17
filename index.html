@@ -1,298 +1,240 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Esquiva Mangonio</title>
+  <meta charset="UTF-8" />
+  <title>Esquiva René</title>
   <style>
     body {
       margin: 0;
-      background-color: #cceeff; /* azul clarito */
-      font-family: Arial, sans-serif;
-    }
-    #gameContainer {
-      position: relative;
-      margin: 20px auto;
-      width: 800px;
-      height: 400px;
-      background-color: #f0e6d2;
-      border: 3px solid #5c432d;
+      background: #def;
       overflow: hidden;
+      font-family: Arial, sans-serif;
     }
     canvas {
       display: block;
+      margin: auto;
+      background: #b2ebf2;
+      border: 5px solid #333;
     }
-    #skinSelector {
+    #gameOver, #winMessage {
+      position: absolute;
+      top: 30%;
+      width: 100%;
       text-align: center;
-      margin: 10px auto;
+      font-size: 2em;
+      color: red;
+      display: none;
     }
-    button {
-      margin: 0 5px;
-      padding: 6px 12px;
-      cursor: pointer;
-      background-color: #5c432d;
-      color: white;
-      border: none;
-      border-radius: 4px;
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 20px;
+      font-size: 20px;
       font-weight: bold;
-    }
-    button.selected {
-      background-color: #9b7c3a;
+      color: #222;
+      text-shadow: 1px 1px 2px white;
     }
     #controls {
-      position: fixed;
+      position: absolute;
       bottom: 10px;
-      left: 10px;
-      background: rgba(255, 255, 255, 0.6);
-      padding: 5px;
-      border-radius: 5px;
-    }
-    .ctrl-btn {
-      margin: 5px;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      font-weight: bold;
-      font-size: 20px;
-    }
-    #scoreDisplay {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      background: rgba(255, 255, 255, 0.7);
-      padding: 5px 10px;
-      border-radius: 4px;
+      left: 20px;
+      font-size: 16px;
+      color: #333;
+      background: rgba(255,255,255,0.7);
+      padding: 6px 10px;
+      border-radius: 8px;
       font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <div id="skinSelector">
-    <button id="skinDefault" class="selected">Mangonio</button>
-    <button id="skinFino">Mangonio Fino</button>
-    <button id="skinRene">René</button>
-  </div>
-  <div id="gameContainer">
-    <canvas id="gameCanvas" width="800" height="400"></canvas>
-    <div id="controls">
-      ↑ Espacio / Flecha arriba (saltar)<br>
-      ↓ Flecha abajo / B (agacharse)<br>
-      R (reiniciar), T (nivel siguiente)
-    </div>
-    <div id="scoreDisplay">Puntaje: 0</div>
-  </div>
-<script>
-(() => {
-  const canvas = document.getElementById('gameCanvas');
-  const ctx = canvas.getContext('2d');
-  const scoreDisplay = document.getElementById('scoreDisplay');
+  <div id="gameOver">Haz muerto 😭<br>Presiona "R" para reiniciar</div>
+  <div id="winMessage">Ganaste 🙉<br>Puntaje máximo alcanzado</div>
+  <div id="score">Puntos: 0</div>
+  <div id="controls">Controles: Espacio para saltar | R para reiniciar</div>
+  <canvas id="game" width="800" height="300"></canvas>
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const scoreDisplay = document.getElementById("score");
+    const gameOverText = document.getElementById("gameOver");
+    const winMessage = document.getElementById("winMessage");
 
-  const groundY = 350;
-  let gameOver = false;
-  let score = 0;
-  let level = 1;
-  let obstacleSpeed = 3;
-  let obstacleFrequency = 0.01;
-  let waterCounter = 0;
-  let hydration = 100;
-  let hydrationTimer = 0;
+    const skinNormal = new Image();
+    const skinMuerte = new Image();
+    skinNormal.src = "rene.png";
+    skinMuerte.src = "rene1.png";
 
-  const skins = {
-    mangonio: ['mangonio.png', 'mangonio1.png'],
-    mangoniofino: ['mangoniofino.png', 'mangoniofino1.png'],
-    "René": ['rene.png', 'rene1.png']
-  };
-  let currentSkin = localStorage.getItem('selectedSkin') || 'mangonio';
-  let currentImg = new Image();
-  let deadImg = new Image();
-  currentImg.src = skins[currentSkin][0];
-  deadImg.src = skins[currentSkin][1];
+    const goal = 2500;
+    const floorHeight = 60;
 
-  const player = {
-    x: 100,
-    y: groundY - 50,
-    width: 50,
-    height: 50,
-    dy: 0,
-    jumping: false,
-    crouching: false,
-    jumpStrength: 14.25,
-    gravity: 0.8,
-    shield: 100,
-    isDead: false
-  };
+    let rene, obstacles, flyingEnemies, speed, frame, score, gameOver, youWin, currentImg;
 
-  function updateSkinButtons() {
-    document.querySelectorAll('#skinSelector button').forEach(btn => btn.classList.remove('selected'));
-    document.getElementById('skinDefault').classList.toggle('selected', currentSkin === 'mangonio');
-    document.getElementById('skinFino').classList.toggle('selected', currentSkin === 'mangoniofino');
-    document.getElementById('skinRene').classList.toggle('selected', currentSkin === 'René');
-  }
-
-  document.getElementById('skinDefault').onclick = () => {
-    currentSkin = 'mangonio';
-    localStorage.setItem('selectedSkin', currentSkin);
-    currentImg.src = skins[currentSkin][0];
-    deadImg.src = skins[currentSkin][1];
-    updateSkinButtons();
-  };
-  document.getElementById('skinFino').onclick = () => {
-    currentSkin = 'mangoniofino';
-    localStorage.setItem('selectedSkin', currentSkin);
-    currentImg.src = skins[currentSkin][0];
-    deadImg.src = skins[currentSkin][1];
-    updateSkinButtons();
-  };
-  document.getElementById('skinRene').onclick = () => {
-    currentSkin = 'René';
-    localStorage.setItem('selectedSkin', currentSkin);
-    currentImg.src = skins[currentSkin][0];
-    deadImg.src = skins[currentSkin][1];
-    updateSkinButtons();
-  };
-  updateSkinButtons();
-
-  let obstacles = [];
-  let waters = [];
-
-  function createObstacle() {
-    obstacles.push({ x: canvas.width, y: groundY - 50, width: 20, height: 50 });
-    waterCounter++;
-    if ((level >= 2) && waterCounter % 5 === 0) {
-      waters.push({ x: canvas.width, y: groundY - 30, width: 20, height: 30 });
+    function resetGame() {
+      rene = {
+        x: 60,
+        y: canvas.height - floorHeight - 60,
+        width: 50,
+        height: 70,
+        vy: 0,
+        jumpPower: -13,
+        gravity: 0.9,
+        grounded: true
+      };
+      obstacles = [];
+      flyingEnemies = [];
+      speed = 6;
+      frame = 0;
+      score = 0;
+      gameOver = false;
+      youWin = false;
+      currentImg = skinNormal;
+      gameOverText.style.display = "none";
+      winMessage.style.display = "none";
+      scoreDisplay.textContent = "Puntos: 0";
+      requestAnimationFrame(update);
     }
-  }
 
-  function drawPlayer() {
-    const img = player.isDead ? deadImg : currentImg;
-    ctx.drawImage(img, player.x, player.y, player.width, player.height);
-  }
+    function drawFloor() {
+      ctx.fillStyle = "#f5deb3";
+      ctx.fillRect(0, canvas.height - floorHeight, canvas.width, floorHeight);
+    }
 
-  function updatePlayer() {
-    if (!player.isDead) {
-      player.y += player.dy;
-      player.dy += player.gravity;
-      if (player.y > groundY - player.height) {
-        player.y = groundY - player.height;
-        player.jumping = false;
+    function drawRene() {
+      ctx.drawImage(currentImg, rene.x, rene.y, rene.width, rene.height);
+    }
+
+    function drawCactus(c) {
+      ctx.fillStyle = "#2e8b57";
+      ctx.fillRect(c.x, c.y, c.width, c.height);
+    }
+
+    function drawFlyingApple(fa) {
+      ctx.fillStyle = "red";
+      ctx.beginPath();
+      ctx.arc(fa.x + 10, fa.y + 10, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "white";
+      ctx.moveTo(fa.x, fa.y);
+      ctx.lineTo(fa.x - 10, fa.y - 10);
+      ctx.stroke();
+      ctx.moveTo(fa.x + 20, fa.y);
+      ctx.lineTo(fa.x + 30, fa.y - 10);
+      ctx.stroke();
+    }
+
+    function drawWin() {
+      ctx.font = "30px Arial";
+      ctx.fillStyle = "purple";
+      ctx.fillText("🎂", canvas.width / 2 - 15, canvas.height / 2);
+      for (let i = 0; i < 100; i++) {
+        ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 50%)`;
+        ctx.beginPath();
+        ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 3, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
-  }
 
-  function detectCollisions() {
-    for (let obs of obstacles) {
-      if (player.x < obs.x + obs.width && player.x + player.width > obs.x && player.y < obs.y + obs.height && player.y + player.height > obs.y) {
-        player.isDead = true;
+    function update() {
+      if (gameOver || youWin) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawFloor();
+
+      rene.vy += rene.gravity;
+      rene.y += rene.vy;
+
+      if (rene.y >= canvas.height - floorHeight - rene.height) {
+        rene.y = canvas.height - floorHeight - rene.height;
+        rene.vy = 0;
+        rene.grounded = true;
       }
-    }
-    for (let i = waters.length - 1; i >= 0; i--) {
-      const w = waters[i];
-      if (player.x < w.x + w.width && player.x + player.width > w.x && player.y < w.y + w.height && player.y + player.height > w.y) {
-        hydration = Math.min(100, hydration + 25);
-        waters.splice(i, 1);
+
+      drawRene();
+
+      if (frame % 60 === 0) {
+        obstacles.push({
+          x: canvas.width,
+          y: canvas.height - floorHeight - 50,
+          width: 20,
+          height: 50
+        });
       }
-    }
-  }
 
-  window.addEventListener('keydown', e => {
-    if ((e.code === 'Space' || e.code === 'ArrowUp') && !player.jumping && !player.isDead) {
-      player.dy = -player.jumpStrength;
-      player.jumping = true;
-    } else if (e.code === 'ArrowDown' || e.code === 'KeyB') {
-      player.height = 30;
-      player.crouching = true;
-    } else if (e.code === 'KeyT') {
-      level++;
-      resetLevel();
-    } else if (e.code === 'KeyR') {
-      resetLevel();
-    }
-  });
+      if (frame % 120 === 0) {
+        flyingEnemies.push({
+          x: canvas.width,
+          y: 100 + Math.random() * 100,
+          width: 20,
+          height: 20
+        });
+      }
 
-  window.addEventListener('keyup', e => {
-    if (e.code === 'ArrowDown' || e.code === 'KeyB') {
-      player.height = 50;
-      player.crouching = false;
-    }
-  });
-
-  function simulateKey(code) {
-    const e = new KeyboardEvent('keydown', { code });
-    window.dispatchEvent(e);
-  }
-
-  function resetLevel() {
-    player.y = groundY - 50;
-    player.dy = 0;
-    player.jumping = false;
-    player.isDead = false;
-    player.shield = 100;
-    hydration = 100;
-    hydrationTimer = 0;
-    obstacles = [];
-    waters = [];
-    score = 0;
-    obstacleSpeed = 3 + level;
-    obstacleFrequency = 0.01 + (level * 0.002);
-  }
-  resetLevel();
-
-  function update() {
-    if (!player.isDead) {
-      if (Math.random() < obstacleFrequency) createObstacle();
-      for (let obs of obstacles) obs.x -= obstacleSpeed;
-      for (let w of waters) w.x -= obstacleSpeed;
-      updatePlayer();
-      detectCollisions();
-      if (level > 1) {
-        hydrationTimer++;
-        if (hydrationTimer >= 300) {
-          hydration -= 5;
-          hydrationTimer = 0;
-          if (hydration <= 0) player.isDead = true;
+      for (let c of obstacles) {
+        c.x -= speed;
+        drawCactus(c);
+        if (
+          rene.x < c.x + c.width &&
+          rene.x + rene.width > c.x &&
+          rene.y + rene.height > c.y
+        ) {
+          gameOver = true;
+          currentImg = skinMuerte;
+          gameOverText.style.display = "block";
+          return;
         }
       }
-      obstacles = obstacles.filter(o => o.x + o.width > 0);
-      waters = waters.filter(w => w.x + w.width > 0);
-      score += 0.1;
-      scoreDisplay.textContent = 'Puntaje: ' + Math.floor(score);
+
+      for (let fa of flyingEnemies) {
+        fa.x -= speed + 1;
+        drawFlyingApple(fa);
+        if (
+          rene.x < fa.x + fa.width &&
+          rene.x + rene.width > fa.x &&
+          rene.y < fa.y + fa.height &&
+          rene.y + rene.height > fa.y
+        ) {
+          gameOver = true;
+          currentImg = skinMuerte;
+          gameOverText.style.display = "block";
+          return;
+        }
+      }
+
+      obstacles = obstacles.filter(c => c.x + c.width > 0);
+      flyingEnemies = flyingEnemies.filter(fa => fa.x + fa.width > 0);
+
+      frame++;
+      if (frame % 5 === 0) {
+        score++;
+        scoreDisplay.textContent = `Puntos: ${score}`;
+
+        if (score % 100 === 0 && speed < 16) {
+          speed += 0.5;
+        }
+      }
+
+      if (score >= goal) {
+        youWin = true;
+        winMessage.style.display = "block";
+        drawWin();
+        return;
+      }
+
+      requestAnimationFrame(update);
     }
-  }
 
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#d9c99b';
-    ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+    window.addEventListener("keydown", e => {
+      if (e.code === "Space" && rene.grounded && !gameOver && !youWin) {
+        rene.vy = rene.jumpPower;
+        rene.grounded = false;
+      }
+      if (e.code === "KeyR" && (gameOver || youWin)) {
+        resetGame();
+      }
+    });
 
-    // Escudo (niv 1) o Hidratación (niv >= 2)
-    ctx.fillStyle = 'blue';
-    if (level === 1) {
-      ctx.fillRect(10, 10, player.shield * 2, 20);
-      ctx.strokeRect(10, 10, 200, 20);
-    } else {
-      ctx.fillRect(10, 10, hydration * 2, 20);
-      ctx.strokeRect(10, 10, 200, 20);
-    }
-
-    for (let obs of obstacles) {
-      ctx.fillStyle = 'green';
-      ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-    }
-    for (let w of waters) {
-      const img = new Image();
-      img.src = 'Agua.png';
-      ctx.drawImage(img, w.x, w.y, w.width, w.height);
-    }
-
-    drawPlayer();
-  }
-
-  function loop() {
-    update();
-    draw();
-    requestAnimationFrame(loop);
-  }
-  loop();
-})();
-</script>
+    skinNormal.onload = () => resetGame();
+  </script>
 </body>
 </html>
