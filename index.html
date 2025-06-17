@@ -1,26 +1,83 @@
-// Solo lo básico que afecta aparición cactus y objetos
-
-// Nivel basado en score o frame, para controlar aparición
-const nivel = Math.floor(score / 500) + 1;
-
-// Aparece cactus SIEMPRE en todos niveles (cada cierto tiempo)
-if (frame % 60 === 0) {
-  obstacles.push({type: "cactus", x: canvas.width, y: canvas.height - floorHeight - 50, width: 20, height: 50});
-}
-
-// Manzanas desde nivel 2
-if (nivel >= 2 && frame % 120 === 0) {
-  obstacles.push({type: "manzana", x: canvas.width, y: canvas.height - floorHeight - 120, width: 40, height: 40, vy: 2});
-}
-
-// Botellas desde nivel 2
-if (nivel >= 2 && frame % 300 === 0) {
-  obstacles.push({type: "botella", x: canvas.width, y: canvas.height - floorHeight - 40, width: 30, height: 40});
-}
-
-// M&Ms desde nivel 1 con probabilidad 25%
-if (nivel >= 1 && frame % 60 === 0) {
-  if (Math.random() < 0.25) {
-    obstacles.push({type: "mms", x: canvas.width, y: canvas.height - floorHeight - 45, width: 30, height: 30});
-  }
-}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Esquiva Mangonio</title>
+  <style>
+    body {
+      margin: 0;
+      background: #def;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      margin: auto;
+      background: #b2ebf2;
+      border: 5px solid #333;
+    }
+    #gameOver, #winMessage {
+      position: absolute;
+      top: 30%;
+      width: 100%;
+      text-align: center;
+      font-size: 2em;
+      color: red;
+      display: none;
+    }
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 20px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    #hydration {
+      position: absolute;
+      bottom: 10px;
+      right: 20px;
+      width: 150px;
+      height: 20px;
+      border: 2px solid #000;
+      background: #ddd;
+    }
+    #hydrationFill {
+      height: 100%;
+      background: #00bcd4;
+      width: 100%;
+      text-align: center;
+      font-size: 14px;
+      color: #000;
+    }
+    #controls {
+      position: absolute;
+      bottom: 10px;
+      left: 20px;
+      font-size: 14px;
+    }
+    #powerUpTimer {
+      position: absolute;
+      top: 40px;
+      left: 20px;
+      font-size: 20px;
+      font-family: 'Comic Sans MS', cursive;
+      color: red;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameOver">Haz muerto Mangonio esta muy triste😭 <br>Presiona "R" para reiniciar</div>
+  <div id="winMessage">Ganaste Mangonio esta orgulloso🙉 <br>Puntaje máximo alcanzado</div>
+  <div id="score">Puntos: 0</div>
+  <div id="powerUpTimer"></div>
+  <div id="hydration">
+    <div id="hydrationFill">100%</div>
+  </div>
+  <div id="controls">Controles: Espacio para saltar, Flecha Abajo para agacharse, R para reiniciar</div>
+  <canvas id="game" width="800" height="300"></canvas>
+  <script>
+    // Este script se llenará a continuación con todo el comportamiento del juego completo con skins, niveles, enemigos, botellas, M&Ms, agacharse, hidratación, etc.
+    // Te avisaré una vez que esté completo.
+  </script>
+</body>
+</html>
