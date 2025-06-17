@@ -49,7 +49,6 @@
     <option value="mangonio.png">Mangonio</option>
     <option value="mangoniofino.png">Mangonio Fino</option>
     <option value="René.png">René</option>
-    <option value="pablito.png">Pablito</option>
   </select>
   <canvas id="game" width="800" height="300"></canvas>
 
@@ -61,28 +60,41 @@
     const winMessage = document.getElementById("winMessage");
     const skinSelector = document.getElementById("skinSelector");
 
-    let currentSkin = skinSelector.value;
     const mangonioImg = new Image();
-    mangonioImg.src = currentSkin;
+    mangonioImg.src = skinSelector.value;
 
     const goal = 2500;
     const floorHeight = 60;
 
     let mangonio, obstacles, speed, frame, score, gameOver, youWin;
     let speedStartTime = 0;
-    let deadImage = null;
 
-    function getDeathSkin(skinName) {
-      if (skinName.toLowerCase() === "rené.png") return "rene1.png";
-      const base = skinName.split(".")[0];
-      return base + "1.png";
+    // Estado batería (para futuras mejoras)
+    let batteryInfo = {
+      charging: true,
+      level: 1,
+      savingMode: false
+    };
+
+    // Detectar estado batería si está disponible
+    if ('getBattery' in navigator) {
+      navigator.getBattery().then(battery => {
+        function updateBatteryInfo() {
+          batteryInfo.charging = battery.charging;
+          batteryInfo.level = battery.level; // 0 a 1
+          batteryInfo.savingMode = battery.level <= 0.2 && !battery.charging;
+          console.log(`Batería: ${(battery.level*100).toFixed(0)}%, Cargando: ${battery.charging}, Ahorro: ${batteryInfo.savingMode}`);
+        }
+        updateBatteryInfo();
+
+        battery.addEventListener('chargingchange', updateBatteryInfo);
+        battery.addEventListener('levelchange', updateBatteryInfo);
+      });
+    } else {
+      console.log("API de batería no soportada en este navegador");
     }
 
     function resetGame() {
-      currentSkin = skinSelector.value;
-      mangonioImg.src = currentSkin;
-      deadImage = null;
-
       mangonio = {
         x: 60,
         y: canvas.height - floorHeight - 60,
@@ -112,8 +124,7 @@
     }
 
     function drawMangonio() {
-      const imgToUse = gameOver && deadImage ? deadImage : mangonioImg;
-      ctx.drawImage(imgToUse, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
+      ctx.drawImage(mangonioImg, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
     }
 
     function drawCactus(cactus) {
@@ -173,11 +184,6 @@
         ) {
           gameOver = true;
           gameOverText.style.display = "block";
-          deadImage = new Image();
-          deadImage.src = getDeathSkin(currentSkin);
-          deadImage.onload = () => {
-            drawMangonio();
-          };
           return;
         }
       }
@@ -186,6 +192,7 @@
 
       frame++;
 
+      // Aumenta velocidad después de 10 segundos
       const elapsedSeconds = (performance.now() - speedStartTime) / 1000;
       if (elapsedSeconds > 10 && speed < 8) {
         speed = 8;
@@ -220,8 +227,7 @@
     });
 
     skinSelector.addEventListener("change", () => {
-      currentSkin = skinSelector.value;
-      mangonioImg.src = currentSkin;
+      mangonioImg.src = skinSelector.value;
     });
 
     mangonioImg.onload = () => {
