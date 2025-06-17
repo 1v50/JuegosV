@@ -1,256 +1,228 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Esquiva Mangonio</title>
   <style>
     body {
       margin: 0;
-      background: linear-gradient(to top, #87ceeb, #d0f0fd);
+      background-color: #b3e5fc;
+      font-family: sans-serif;
       overflow: hidden;
-      font-family: Arial, sans-serif;
     }
     #gameContainer {
       position: relative;
-      margin: 20px auto;
       width: 800px;
       height: 400px;
-      background: #f0e6d2;
-      border: 3px solid #5c432d;
-      border-radius: 8px;
-      overflow: hidden;
+      margin: 20px auto;
+      background-color: #d7f9fd;
+      border: 3px solid #444;
     }
     canvas {
       display: block;
-      background: transparent;
     }
     #skinSelector {
-      margin: 10px auto;
       text-align: center;
+      margin-bottom: 10px;
     }
-    button {
+    .skinButton {
       margin: 0 5px;
-      padding: 6px 12px;
-      cursor: pointer;
-      background-color: #5c432d;
+      padding: 8px 16px;
+      background-color: #2196f3;
       color: white;
       border: none;
       border-radius: 4px;
-      font-weight: bold;
+      cursor: pointer;
     }
-    button.selected {
-      background-color: #9b7c3a;
+    .skinButton.selected {
+      background-color: #0d47a1;
     }
   </style>
 </head>
 <body>
   <div id="skinSelector">
-    <button id="skinDefault" class="selected">Mangonio</button>
-    <button id="skinFino">Mangonio Fino</button>
+    <button class="skinButton" data-skin="mangonio">Mangonio</button>
+    <button class="skinButton" data-skin="mangoniofino">Mangonio Fino</button>
+    <button class="skinButton" data-skin="rene">René</button>
   </div>
   <div id="gameContainer">
     <canvas id="gameCanvas" width="800" height="400"></canvas>
   </div>
 
-<script>
-(() => {
-  const canvas = document.getElementById('gameCanvas');
-  const ctx = canvas.getContext('2d');
-  const groundY = 350;
-  let gameOver = false;
-  let score = 0;
-  let obstacleSpeed = 5;
-  let currentLevel = 1;
-  const skins = {
-    mangonio: 'mangonio.png',
-    mangoniofino: 'mangoniofino.png'
-  };
-  const deathSkins = {
-    mangonio: 'mangonio1.png',
-    mangoniofino: 'mangoniofino2.png'
-  };
-  let currentSkin = localStorage.getItem('selectedSkin') || 'mangonio';
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const groundY = 350;
+    let score = 0;
+    let level = 1;
+    let obstacleSpeed = 4;
+    let gameOver = false;
 
-  const playerImgs = {
-    mangonio: new Image(),
-    mangoniofino: new Image()
-  };
-  const deathImgs = {
-    mangonio: new Image(),
-    mangoniofino: new Image()
-  };
-  playerImgs.mangonio.src = skins.mangonio;
-  playerImgs.mangoniofino.src = skins.mangoniofino;
-  deathImgs.mangonio.src = deathSkins.mangonio;
-  deathImgs.mangoniofino.src = deathSkins.mangoniofino;
+    const skins = {
+      mangonio: ['mangonio.png', 'mangonio1.png'],
+      mangoniofino: ['mangoniofino.png', 'mangoniofino1.png'],
+      rene: ['rene.png', 'rene1.png']
+    };
 
-  let obstacles = [];
-  const player = {
-    x: 100,
-    y: groundY - 50,
-    width: 50,
-    height: 50,
-    dy: 0,
-    jumping: false,
-    jumpStrength: 15,
-    gravity: 0.8,
-    dead: false,
-    get image() {
-      return this.dead ? deathImgs[currentSkin] : playerImgs[currentSkin];
+    let selectedSkin = localStorage.getItem('selectedSkin') || 'mangonio';
+    const playerImage = new Image();
+    const playerDeadImage = new Image();
+    playerImage.src = skins[selectedSkin][0];
+    playerDeadImage.src = skins[selectedSkin][1];
+
+    const player = {
+      x: 100,
+      y: groundY - 50,
+      width: 50,
+      height: 50,
+      dy: 0,
+      gravity: 0.8,
+      jumpStrength: 14.25,
+      jumping: false,
+      image: playerImage
+    };
+
+    const obstacles = [];
+
+    function createObstacle() {
+      const height = 40 + Math.random() * 40;
+      obstacles.push({
+        x: canvas.width,
+        y: groundY - height,
+        width: 20,
+        height: height
+      });
     }
-  };
 
-  document.getElementById('skinDefault').addEventListener('click', () => {
-    currentSkin = 'mangonio';
-    localStorage.setItem('selectedSkin', currentSkin);
-    updateSkinButtons();
-  });
-  document.getElementById('skinFino').addEventListener('click', () => {
-    currentSkin = 'mangoniofino';
-    localStorage.setItem('selectedSkin', currentSkin);
-    updateSkinButtons();
-  });
-
-  function updateSkinButtons() {
-    document.getElementById('skinDefault').classList.toggle('selected', currentSkin === 'mangonio');
-    document.getElementById('skinFino').classList.toggle('selected', currentSkin === 'mangoniofino');
-  }
-  updateSkinButtons();
-
-  function createObstacle() {
-    const height = 50 + Math.random() * 30;
-    obstacles.push({ x: canvas.width + 20, y: groundY - height, width: 20, height });
-  }
-
-  function drawCactus(x, y, width, height) {
-    ctx.fillStyle = '#2e8b57';
-    ctx.fillRect(x, y, width, height);
-    ctx.fillStyle = 'rgba(0, 50, 0, 0.5)';
-    ctx.fillRect(x, y, width / 3, height);
-    ctx.fillStyle = 'black';
-    for (let i = 0; i < 15; i++) {
-      const px = x + Math.random() * width;
-      const py = y + Math.random() * height;
-      ctx.beginPath();
-      ctx.arc(px, py, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  function drawRockTexture() {
-    const colors = ['#8B7D7B', '#7F6A5F', '#A0938F'];
-    for (let i = 0; i < 50; i++) {
-      const x = Math.random() * canvas.width;
-      const y = groundY + 10 + Math.random() * 30;
-      const size = 3 + Math.random() * 5;
-      ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
-      ctx.beginPath();
-      ctx.ellipse(x, y, size, size / 2, Math.random() * Math.PI, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  function drawGround() {
-    ctx.fillStyle = '#d9c99b';
-    ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
-  }
-
-  function drawPlayer() {
-    ctx.drawImage(player.image, player.x, player.y, player.width, player.height);
-  }
-
-  function updatePlayer() {
-    player.y += player.dy;
-    player.dy += player.gravity;
-    if (player.y > groundY - player.height) {
-      player.y = groundY - player.height;
-      player.jumping = false;
-      player.dy = 0;
-    }
-  }
-
-  function detectCollision() {
-    for (let obs of obstacles) {
-      if (player.x < obs.x + obs.width && player.x + player.width > obs.x && player.y < obs.y + obs.height && player.y + player.height > obs.y) {
-        gameOver = true;
-        player.dead = true;
+    function drawObstacle(obs) {
+      ctx.fillStyle = '#2e8b57';
+      ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+      ctx.fillStyle = '#1b5e20';
+      ctx.fillRect(obs.x, obs.y, obs.width / 3, obs.height);
+      ctx.fillStyle = 'black';
+      for (let i = 0; i < 10; i++) {
+        ctx.beginPath();
+        ctx.arc(obs.x + Math.random() * obs.width, obs.y + Math.random() * obs.height, 1, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
-  }
 
-  window.addEventListener('keydown', e => {
-    if ((e.code === 'Space' || e.code === 'ArrowUp') && !player.jumping && !gameOver) {
-      const jumpMult = currentLevel <= 2 ? 0.95 : 1;
-      player.dy = -player.jumpStrength * jumpMult;
-      player.jumping = true;
+    function drawPlayer() {
+      ctx.drawImage(player.image, player.x, player.y, player.width, player.height);
     }
-    if (e.code === 'Enter' && gameOver) resetGame();
-  });
 
-  function resetGame() {
-    gameOver = false;
-    score = 0;
-    obstacles = [];
-    player.y = groundY - player.height;
-    player.dy = 0;
-    player.jumping = false;
-    player.dead = false;
-    obstacleSpeed = 5;
-    currentLevel = 1;
-  }
-
-  function update() {
-    if (gameOver) return;
-    for (let obs of obstacles) obs.x -= obstacleSpeed;
-    obstacles = obstacles.filter(obs => obs.x + obs.width > 0);
-    if (Math.random() < 0.02) createObstacle();
-    updatePlayer();
-    detectCollision();
-    score += 0.1;
-    if (score > 0 && score % 100 < 0.1) {
-      obstacleSpeed += 0.5;
-      currentLevel++;
+    function updatePlayer() {
+      player.y += player.dy;
+      player.dy += player.gravity;
+      if (player.y > groundY - player.height) {
+        player.y = groundY - player.height;
+        player.dy = 0;
+        player.jumping = false;
+      }
     }
-  }
 
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawGround();
-    drawRockTexture();
-    for (let obs of obstacles) drawCactus(obs.x, obs.y, obs.width, obs.height);
-    drawPlayer();
-    ctx.fillStyle = 'black';
-    ctx.font = '20px Arial';
-    ctx.fillText(`Puntaje: ${Math.floor(score)}`, 10, 30);
-    if (gameOver) {
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = 'white';
-      ctx.font = '40px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('¡Juego Terminado!', canvas.width / 2, canvas.height / 2 - 20);
-      ctx.font = '20px Arial';
-      ctx.fillText('Presiona ENTER para reiniciar', canvas.width / 2, canvas.height / 2 + 20);
-      ctx.textAlign = 'left';
+    function checkCollision() {
+      for (let obs of obstacles) {
+        if (
+          player.x < obs.x + obs.width &&
+          player.x + player.width > obs.x &&
+          player.y < obs.y + obs.height &&
+          player.y + player.height > obs.y
+        ) {
+          player.image = playerDeadImage;
+          gameOver = true;
+        }
+      }
     }
-  }
 
-  function gameLoop() {
-    update();
-    draw();
-    requestAnimationFrame(gameLoop);
-  }
-
-  function start() {
-    if (!playerImgs.mangonio.complete || !playerImgs.mangoniofino.complete) {
-      setTimeout(start, 100);
-      return;
+    function resetGame() {
+      player.image = new Image();
+      player.image.src = skins[selectedSkin][0];
+      playerDeadImage.src = skins[selectedSkin][1];
+      player.y = groundY - player.height;
+      player.dy = 0;
+      player.jumping = false;
+      obstacles.length = 0;
+      score = 0;
+      level = 1;
+      obstacleSpeed = 4;
+      gameOver = false;
     }
-    gameLoop();
-  }
 
-  start();
-})();
-</script>
+    function update() {
+      if (gameOver) return;
+      updatePlayer();
+      for (let obs of obstacles) obs.x -= obstacleSpeed;
+      if (Math.random() < 0.02) createObstacle();
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        if (obstacles[i].x + obstacles[i].width < 0) obstacles.splice(i, 1);
+      }
+      checkCollision();
+      score += 1;
+      if (score % 300 === 0) {
+        level++;
+        obstacleSpeed += 0.5;
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#ffe082';
+      ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+
+      for (let obs of obstacles) drawObstacle(obs);
+
+      drawPlayer();
+
+      ctx.fillStyle = 'black';
+      ctx.font = '18px Arial';
+      ctx.fillText(`Puntaje: ${Math.floor(score)}`, 10, 30);
+      ctx.fillText(`Nivel: ${level}`, 10, 50);
+
+      if (gameOver) {
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'white';
+        ctx.font = '32px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('¡Perdiste!', canvas.width / 2, canvas.height / 2 - 20);
+        ctx.font = '16px Arial';
+        ctx.fillText('Presiona ENTER para reiniciar', canvas.width / 2, canvas.height / 2 + 20);
+        ctx.textAlign = 'left';
+      }
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    document.addEventListener('keydown', e => {
+      if ((e.code === 'Space' || e.code === 'ArrowUp') && !player.jumping && !gameOver) {
+        player.dy = -player.jumpStrength;
+        player.jumping = true;
+      }
+      if (e.code === 'Enter' && gameOver) resetGame();
+    });
+
+    document.querySelectorAll('.skinButton').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedSkin = btn.dataset.skin;
+        localStorage.setItem('selectedSkin', selectedSkin);
+        document.querySelectorAll('.skinButton').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        player.image.src = skins[selectedSkin][0];
+        playerDeadImage.src = skins[selectedSkin][1];
+      });
+    });
+
+    window.onload = () => {
+      player.image.src = skins[selectedSkin][0];
+      playerDeadImage.src = skins[selectedSkin][1];
+      document.querySelector(`.skinButton[data-skin="${selectedSkin}"]`).classList.add('selected');
+      loop();
+    };
+  </script>
 </body>
 </html>
