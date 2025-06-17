@@ -59,12 +59,15 @@
           lvlBtns = document.getElementById("levelButtons");
 
     const imgMang = new Image(), imgManzana = new Image(), imgAgua = new Image(), imgMM = new Image();
+    const imgNubes = new Image();
     imgManzana.src="manzana.png"; 
     imgAgua.src="Agua.png"; 
     imgMM.src="EMANEMS.png";
+    imgNubes.src = "nubes.png";
 
     let level = 1, unlockedLevels=[1], mangonio, obstacles, speed, frame, score, gameOver=false, youWin=false;
     let canDouble=false, hydration=100, crouch=false, jumps=0;
+    let clouds = [];
 
     // Mensajes de muerte según skin
     function getDeathMessage() {
@@ -76,7 +79,7 @@
     }
 
     function resetGame() {
-      mangonio = { x:60, y: canvas.height-60-70, w:50, h:70, vy:0, gp:-13, g:0.9, grd:true };
+      mangonio = { x:60, y: canvas.height-60-70, w:50, h:70, vy:0, gp:-17, g:0.9, grd:true };
       obstacles = [];
       frame = 0;
       score = 0;
@@ -96,6 +99,12 @@
 
       hdLvlEl.style.width = hydration + "%";
       hdLvlEl.parentElement.style.display = level >= 3 ? "block" : "none";
+
+      // Crear nubes para el fondo
+      clouds = [];
+      for(let i=0; i<5; i++) {
+        clouds.push({ x: Math.random()*canvas.width, y: Math.random()*100, speed: 0.3 + Math.random()*0.4, w: 100, h: 60 });
+      }
 
       requestAnimationFrame(update);
     }
@@ -133,10 +142,10 @@
 
     skinSel.addEventListener("change", () => {
       imgMang.src = skinSel.value;
+      // Reiniciar el juego para evitar problema de velocidad y reajustar salto
+      resetGame();
     });
     imgMang.src = skinSel.value;
-
-    imgMang.onload = () => resetGame();
 
     function showLevelSelect(){
       lvlSelDiv.style.display = "block"; 
@@ -155,7 +164,6 @@
     }
 
     function drawMang(){
-      // Ajuste de tamaño para skins diferentes
       let w = mangonio.w;
       let h = mangonio.h;
       if(skinSel.value == "mangoniofino.png") { w *= 0.8; }
@@ -163,12 +171,10 @@
       ctx.drawImage(imgMang, mangonio.x, mangonio.y, w, h);
     }
 
-    // Cactus 1/4 más pequeños que 20x50, o sea 15x37.5
     function drawCactus(c) { 
       ctx.fillStyle = "#2e8b57"; 
       ctx.fillRect(c.x, c.y, c.w, c.h); 
     }
-
     function drawManzana(m) { 
       ctx.drawImage(imgManzana, m.x, m.y, m.w, m.h); 
     }
@@ -179,10 +185,20 @@
       ctx.drawImage(imgMM, x.x, x.y, 20, 20); 
     }
 
+    function drawClouds() {
+      clouds.forEach(c => {
+        ctx.drawImage(imgNubes, c.x, c.y, c.w, c.h);
+      });
+    }
+
     function update() {
       if(gameOver || youWin) return;
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Nubes en fondo
+      drawClouds();
+
       drawFloor();
 
       mangonio.vy += mangonio.g; 
@@ -196,18 +212,13 @@
 
       drawMang();
 
-      // Crear obstáculos con menos cactus en niveles 1 y 2 y cactus más pequeños
       if(frame % (level <= 2 ? 120 : 60) == 0) {
-        // Cactus 1/4 más pequeños que 20x50 = 15x37.5
         let cactusW = 15;
         let cactusH = 37.5;
         let obs;
-
-        // Menos cactus en niveles 1 y 2, más probabilidades en otros niveles
         if(level <= 2) {
           obs = { x: canvas.width, y: canvas.height - 60 - cactusH, w: cactusW, h: cactusH, type: 'cactus' };
         } else {
-          // 30% de manzana, sino cactus
           if(Math.random() < 0.3) {
             obs = { x: canvas.width, y: canvas.height - 60 - 30, w: 30, h: 30, type: 'manzana' };
           } else {
@@ -217,17 +228,14 @@
         obstacles.push(obs);
       }
 
-      // Agua nivel 3+
       if(level >= 3 && obstacles.filter(o => o.type == 'cactus').length % 5 == 0 && Math.random() < 0.05) {
         obstacles.push({ x: canvas.width, y: canvas.height - 60 - 30, w: 20, h: 30, type: 'agua' });
       }
 
-      // MM nivel 4+
       if(level >= 4 && Math.random() < 0.005) {
         obstacles.push({ x: canvas.width, y: canvas.height - 60 - 40, w: 20, h: 20, type: 'mm' });
       }
 
-      // Mover y dibujar obstáculos
       obstacles.forEach((o, i) => {
         o.x -= speed * (level == 4 && Math.random() < 0.5 ? 1.2 : 1);
         if(o.type == 'cactus') drawCactus(o);
@@ -235,7 +243,6 @@
         else if(o.type == 'agua') drawAgua(o);
         else if(o.type == 'mm') drawMM(o);
 
-        // Colisiones
         if(
           mangonio.x < o.x + o.w &&
           mangonio.x + mangonio.w > o.x &&
@@ -258,7 +265,6 @@
         }
       });
 
-      // Limpiar obstáculos que salieron
       obstacles = obstacles.filter(o => o.x + o.w > 0);
 
       frame++;
@@ -284,7 +290,6 @@
         ctx.globalAlpha = 1;
       }
 
-      // Mensajes de nivel completado o victoria
       if(score >= 2000) {
         youWin = true;
         if(level < 5) {
@@ -297,6 +302,12 @@
       } else {
         requestAnimationFrame(update);
       }
+
+      // Mover nubes
+      clouds.forEach(c => {
+        c.x -= c.speed;
+        if(c.x + c.w < 0) c.x = canvas.width + Math.random() * 100;
+      });
     }
   </script>
 </body>
