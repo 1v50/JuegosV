@@ -67,6 +67,32 @@
     const floorHeight = 60;
 
     let mangonio, obstacles, speed, frame, score, gameOver, youWin;
+    let speedStartTime = 0;
+
+    // Estado batería (para futuras mejoras)
+    let batteryInfo = {
+      charging: true,
+      level: 1,
+      savingMode: false
+    };
+
+    // Detectar estado batería si está disponible
+    if ('getBattery' in navigator) {
+      navigator.getBattery().then(battery => {
+        function updateBatteryInfo() {
+          batteryInfo.charging = battery.charging;
+          batteryInfo.level = battery.level; // 0 a 1
+          batteryInfo.savingMode = battery.level <= 0.2 && !battery.charging;
+          console.log(`Batería: ${(battery.level*100).toFixed(0)}%, Cargando: ${battery.charging}, Ahorro: ${batteryInfo.savingMode}`);
+        }
+        updateBatteryInfo();
+
+        battery.addEventListener('chargingchange', updateBatteryInfo);
+        battery.addEventListener('levelchange', updateBatteryInfo);
+      });
+    } else {
+      console.log("API de batería no soportada en este navegador");
+    }
 
     function resetGame() {
       mangonio = {
@@ -85,6 +111,7 @@
       score = 0;
       gameOver = false;
       youWin = false;
+      speedStartTime = performance.now();
       gameOverText.style.display = "none";
       winMessage.style.display = "none";
       scoreDisplay.textContent = "Puntos: 0";
@@ -164,6 +191,13 @@
       obstacles = obstacles.filter(c => c.x + c.width > 0);
 
       frame++;
+
+      // Aumenta velocidad después de 10 segundos
+      const elapsedSeconds = (performance.now() - speedStartTime) / 1000;
+      if (elapsedSeconds > 10 && speed < 8) {
+        speed = 8;
+      }
+
       if (frame % 5 === 0) {
         score++;
         scoreDisplay.textContent = `Puntos: ${score}`;
