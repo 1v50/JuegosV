@@ -1,153 +1,111 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>Juego de Pablito y Amigos</title>
-  <style>
-    body {
-      margin: 0;
-      background-color: #f4f4f4;
-      font-family: sans-serif;
-      overflow: hidden;
+<script>
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  const personajes = {
+    "pablito.png": { muerto: "pablito.png" },
+    "mangonio.png": { muerto: "mangonio1.png" },
+    "mangoniofino.png": { muerto: "mangoniofino.png" },
+    "René.png": { muerto: "rene1.png" }
+  };
+
+  let seleccion = "pablito.png";
+  let personajeImg = new Image();
+  personajeImg.src = seleccion;
+
+  let muerto = false;
+  let agachado = false;
+
+  const jugador = {
+    x: 50,
+    y: 150,
+    vy: 0,
+    width: 50,
+    height: 50,
+    grounded: true
+  };
+
+  const cactus = {
+    x: 800,
+    y: 150,
+    width: 20,
+    height: 50
+  };
+
+  document.addEventListener("keydown", e => {
+    if (e.key === " " && jugador.grounded && !muerto) {
+      jugador.vy = -12;
+      jugador.grounded = false;
     }
-
-    canvas {
-      display: block;
-      background: white;
-      border-bottom: 2px solid #444;
+    if (e.key.toLowerCase() === "b") {
+      agachado = true;
     }
+  });
 
-    #personaje {
-      position: absolute;
-      top: 10px;
-      left: 10px;
+  document.addEventListener("keyup", e => {
+    if (e.key.toLowerCase() === "b") {
+      agachado = false;
     }
+  });
 
-    select {
-      padding: 5px;
-      font-size: 16px;
-    }
-  </style>
-</head>
-<body>
-  <div id="personaje">
-    <label>Selecciona personaje: </label>
-    <select id="selector">
-      <option value="pablito.png">Pablito</option>
-      <option value="mangonio.png">Mangonio</option>
-      <option value="mangoniofino.png">Mangonio Fino</option>
-      <option value="René.png">René</option>
-    </select>
-  </div>
-  <canvas id="game" width="800" height="200"></canvas>
+  function cambiarPersonaje(nombreArchivo) {
+    seleccion = nombreArchivo;
+    personajeImg.src = seleccion;
+    muerto = false;
+  }
 
-  <script>
-    const canvas = document.getElementById("game");
-    const ctx = canvas.getContext("2d");
-    const gravity = 0.6;
+  function colision(a, b) {
+    return (
+      a.x < b.x + b.width &&
+      a.x + a.width > b.x &&
+      a.y < b.y + b.height &&
+      a.y + a.height > b.y
+    );
+  }
 
-    const personajes = {
-      "pablito.png": { muerto: "pablito.png" },
-      "mangonio.png": { muerto: "mangonio1.png" },
-      "mangoniofino.png": { muerto: "mangoniofino.png" }, // mismo sprite
-      "René.png": { muerto: "rene1.png" },
-    };
+  function actualizar() {
+    if (!muerto) {
+      jugador.vy += 0.6;
+      jugador.y += jugador.vy;
 
-    let personajeImg = new Image();
-    personajeImg.src = "pablito.png";
-
-    let muerto = false;
-    let agachado = false;
-
-    let jugador = {
-      x: 50,
-      y: 150,
-      vy: 0,
-      width: 50,
-      height: 50,
-      grounded: true
-    };
-
-    let cactus = {
-      x: 800,
-      y: 150,
-      width: 20,
-      height: 50,
-    };
-
-    document.getElementById("selector").addEventListener("change", (e) => {
-      const src = e.target.value;
-      personajeImg.src = src;
-      muerto = false;
-    });
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key === " " && jugador.grounded && !muerto) {
-        jugador.vy = -12;
-        jugador.grounded = false;
+      if (jugador.y >= 150) {
+        jugador.y = 150;
+        jugador.vy = 0;
+        jugador.grounded = true;
       }
-      if (e.key.toLowerCase() === "b") {
-        agachado = true;
-      }
-    });
 
-    document.addEventListener("keyup", (e) => {
-      if (e.key.toLowerCase() === "b") {
-        agachado = false;
-      }
-    });
+      cactus.x -= 6;
+      if (cactus.x < -20) cactus.x = 800;
 
-    function colision(rect1, rect2) {
-      return (
-        rect1.x < rect2.x + rect2.width &&
-        rect1.x + rect1.width > rect2.x &&
-        rect1.y < rect2.y + rect2.height &&
-        rect1.y + rect1.height > rect2.y
-      );
-    }
-
-    function actualizar() {
-      if (!muerto) {
-        jugador.vy += gravity;
-        jugador.y += jugador.vy;
-
-        if (jugador.y >= 150) {
-          jugador.y = 150;
-          jugador.vy = 0;
-          jugador.grounded = true;
-        }
-
-        cactus.x -= 6;
-        if (cactus.x < -20) cactus.x = 800;
-
-        if (colision(jugador, cactus)) {
-          muerto = true;
-          const current = personajeImg.src.split("/").pop();
-          personajeImg.src = personajes[current].muerto;
-        }
+      if (colision(jugador, cactus)) {
+        muerto = true;
+        const imgMuerto = personajes[seleccion]?.muerto;
+        if (imgMuerto) personajeImg.src = imgMuerto;
       }
     }
+  }
 
-    function dibujar() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+  function dibujar() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Dibujar personaje
-      const alto = agachado ? 30 : 50;
-      const yOffset = agachado ? 20 : 0;
-      ctx.drawImage(personajeImg, jugador.x, jugador.y + yOffset, jugador.width, alto);
+    // Agacharse (reducir altura visual)
+    const altura = agachado ? 30 : 50;
+    const offset = agachado ? 20 : 0;
 
-      // Dibujar cactus
-      ctx.fillStyle = "green";
-      ctx.fillRect(cactus.x, cactus.y, cactus.width, cactus.height);
-    }
+    ctx.drawImage(personajeImg, jugador.x, jugador.y + offset, jugador.width, altura);
 
-    function loop() {
-      actualizar();
-      dibujar();
-      requestAnimationFrame(loop);
-    }
+    ctx.fillStyle = "green";
+    ctx.fillRect(cactus.x, cactus.y, cactus.width, cactus.height);
+  }
 
-    loop();
-  </script>
-</body>
-</html>
+  function bucle() {
+    actualizar();
+    dibujar();
+    requestAnimationFrame(bucle);
+  }
+
+  bucle();
+
+  // Cambiar personaje desde fuera (si ya tenías un selector)
+  window.cambiarPersonaje = cambiarPersonaje;
+</script>
