@@ -9,8 +9,9 @@
     #gameOver, #winMessage, #levelComplete {
       position: absolute; top: 30%; width: 100%; text-align: center;
       font-size: 2em; color: red; display: none;
+      user-select:none;
     }
-    #score { position: absolute; top: 10px; left: 20px; font-size: 20px; font-weight: bold; }
+    #score { position: absolute; top: 10px; left: 20px; font-size: 20px; font-weight: bold; user-select:none;}
     #hydrationBar {
       position: absolute; bottom: 10px; right: 10px;
       width: 100px; height: 10px; border: 2px solid #000; background: #ccc;
@@ -19,23 +20,26 @@
     #controlsInfo {
       position: absolute; bottom: 50px; left: 10px;
       font-size: 14px; background: rgba(255,255,255,0.7); padding: 4px 8px; border-radius: 5px;
+      user-select:none;
     }
     #skinSelector {
       position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
       font-size: 16px; padding: 8px;
+      user-select:none;
     }
     #levelSelect {
       display: none; position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -50%); background: white; border: 3px solid #222;
       padding: 20px; text-align: center; box-shadow: 0 0 15px rgba(0,0,0,0.5);
+      user-select:none;
     }
-    #levelSelect button { margin: 5px; font-size: 16px; padding: 10px 20px; }
+    #levelSelect button { margin: 5px; font-size: 16px; padding: 10px 20px; cursor:pointer;}
   </style>
 </head>
 <body>
   <div id="gameOver">Haz muerto, Mangonio está muy triste 😭<br>Presiona "R" para reiniciar</div>
   <div id="winMessage">Felicidades Completaste todos los niveles 🎂<br>Elige otro nivel abajo</div>
-  <div id="levelComplete">Nivel completado 👽<br>Presiona "T" para el siguiente nivel</div>
+  <div id="levelComplete">Nivel completado 👽 <br>Presiona "T" para el siguiente nivel</div>
   <div id="score">Puntos: 0</div>
   <div id="hydrationBar"><div id="hydrationLevel"></div></div>
   <div id="controlsInfo">B = agacharse • T = siguiente nivel (al completarlo) • R = reiniciar</div>
@@ -47,268 +51,276 @@
   <div id="levelSelect"><h2>Selecciona un nivel</h2><div id="levelButtons"></div></div>
   <canvas id="game" width="800" height="300"></canvas>
 
-  <script>
-    const canvas = document.getElementById("game"), ctx = canvas.getContext("2d");
-    const scoreEl = document.getElementById("score"),
-          gameOverEl = document.getElementById("gameOver"),
-          winEl = document.getElementById("winMessage"),
-          lvlCompEl = document.getElementById("levelComplete"),
-          hdLvlEl = document.getElementById("hydrationLevel"),
-          skinSel = document.getElementById("skinSelector"),
-          lvlSelDiv = document.getElementById("levelSelect"),
-          lvlBtns = document.getElementById("levelButtons");
+<script>
+  const canvas = document.getElementById("game"), ctx = canvas.getContext("2d");
+  const scoreEl = document.getElementById("score"),
+        gameOverEl = document.getElementById("gameOver"),
+        winEl = document.getElementById("winMessage"),
+        lvlCompEl = document.getElementById("levelComplete"),
+        hdLvlEl = document.getElementById("hydrationLevel"),
+        skinSel = document.getElementById("skinSelector"),
+        lvlSelDiv = document.getElementById("levelSelect"),
+        lvlBtns = document.getElementById("levelButtons");
 
-    const imgMang = new Image(), imgManzana = new Image(), imgAgua = new Image(), imgMM = new Image();
-    const imgNubes = new Image();
-    imgManzana.src="manzana.png"; 
-    imgAgua.src="Agua.png"; 
-    imgMM.src="EMANEMS.png";
-    imgNubes.src = "nubes.png";
+  const imgMang = new Image(), imgDeath = new Image(), imgManzana = new Image(), imgAgua = new Image(), imgNubes = new Image();
+  imgManzana.src = "manzana.png";
+  imgAgua.src = "Agua.png";
+  imgNubes.src = "nubes.png";
 
-    let level = 1, unlockedLevels=[1], mangonio, obstacles, speed, frame, score, gameOver=false, youWin=false;
-    let canDouble=false, hydration=100, crouch=false, jumps=0;
-    let clouds = [];
+  let level = 1, unlockedLevels = [1];
+  let mangonio, obstacles, speed, frame, score, gameOver = false, youWin = false;
+  let canDouble = false, hydration = 100, crouch = false, jumps = 0;
+  let currentSkin = skinSel.value;
+  let deadSkinMap = {
+    "mangonio.png": "mangonio1.png",
+    "mangoniofino.png": "mangoniofino2.png",
+    "René.png": "rene1.png"
+  };
 
-    // Mensajes de muerte según skin
-    function getDeathMessage() {
-      const skin = skinSel.value;
-      if(skin === "mangonio.png") return "Haz muerto, Mangonio está muy triste 😭<br>Presiona \"R\" para reiniciar";
-      else if(skin === "mangoniofino.png") return "Haz muerto pero con estilo bro jijiji 🙉.<br>Presiona \"R\" para reiniciar";
-      else if(skin === "René.png") return "René murió... pero siempre será el más guapo de la Nación👦🏿<br>Presiona \"R\" para reiniciar";
-      else return "Haz muerto<br>Presiona \"R\" para reiniciar";
+  let jumpPower = -16; // salto más alto
+
+  function resetGame() {
+    mangonio = { x: 60, y: canvas.height - 60 - 70, w: 50, h: 70, vy: 0, gp: jumpPower, g: 0.9, grd: true };
+    obstacles = [];
+    frame = 0;
+    score = 0;
+    gameOver = false;
+    youWin = false;
+    jumps = 0;
+    speed = (level <= 2 ? 3 : 6);
+    canDouble = level >= 4;
+    hydration = level >= 3 ? 100 : 0;
+    scoreEl.textContent = `Puntos: 0`;
+    gameOverEl.style.display = "none";
+    winEl.style.display = "none";
+    lvlCompEl.style.display = "none";
+    hdLvlEl.style.width = hydration + "%";
+    hdLvlEl.parentElement.style.display = level >= 3 ? "block" : "none";
+
+    currentSkin = skinSel.value;
+    imgMang.src = currentSkin;
+    imgDeath.src = deadSkinMap[currentSkin];
+
+    requestAnimationFrame(update);
+  }
+
+  document.addEventListener("keydown", e => {
+    if (e.code == "Space" && (mangonio.grd || (canDouble && jumps < 2)) && !gameOver && !youWin) {
+      mangonio.vy = mangonio.gp;
+      mangonio.grd = false;
+      jumps++;
     }
-
-    function resetGame() {
-      mangonio = { x:60, y: canvas.height-60-70, w:50, h:70, vy:0, gp:-17, g:0.9, grd:true };
-      obstacles = [];
-      frame = 0;
-      score = 0;
-      gameOver = false;
-      youWin = false;
-      jumps = 0;
-
-      // Velocidad más lenta en niveles 1 y 2 (un 15% más lenta)
-      speed = (level <= 2 ? 3.5 * 0.85 : 6);
-      canDouble = level >= 4;
-      hydration = level >= 3 ? 100 : 0;
-
-      scoreEl.textContent = `Puntos: 0`; 
-      gameOverEl.style.display = "none"; 
-      winEl.style.display = "none"; 
-      lvlCompEl.style.display = "none";
-
-      hdLvlEl.style.width = hydration + "%";
-      hdLvlEl.parentElement.style.display = level >= 3 ? "block" : "none";
-
-      // Crear nubes para el fondo
-      clouds = [];
-      for(let i=0; i<5; i++) {
-        clouds.push({ x: Math.random()*canvas.width, y: Math.random()*100, speed: 0.3 + Math.random()*0.4, w: 100, h: 60 });
-      }
-
-      requestAnimationFrame(update);
+    if (e.key == "b" || e.key == "B") {
+      crouch = true;
+      mangonio.h = 40;
     }
-
-    document.addEventListener("keydown", e => {
-      if(e.code == "Space" && (mangonio.grd || (canDouble && jumps < 2)) && !gameOver && !youWin) {
-        mangonio.vy = mangonio.gp; 
-        mangonio.grd = false; 
-        jumps++;
-      }
-      if(e.key == "b" || e.key == "B") {
-        crouch = true; 
-        mangonio.h = 40; 
-      }
-      if((e.key == "r" || e.key == "R") && (gameOver || youWin)) {
+    if ((e.key == "r" || e.key == "R") && (gameOver || youWin)) resetGame();
+    if (e.key == "t" || e.key == "T") {
+      if (youWin && level < 5) {
+        level++;
+        if (!unlockedLevels.includes(level)) unlockedLevels.push(level);
         resetGame();
-      }
-      if(e.key == "t" || e.key == "T") {
-        if(youWin && level < 5) { 
-          level++; 
-          if(!unlockedLevels.includes(level)) unlockedLevels.push(level);
-          resetGame();
-        } else if(youWin && level == 5) {
-          showLevelSelect();
-        }
-      }
-    });
+      } else if (youWin && level == 5) showLevelSelect();
+    }
+  });
+  document.addEventListener("keyup", e => {
+    if (e.key == "b" || e.key == "B") {
+      crouch = false;
+      mangonio.h = 70;
+    }
+  });
 
-    document.addEventListener("keyup", e => {
-      if(e.key == "b" || e.key == "B") {
-        crouch = false; 
-        mangonio.h = 70; 
-      }
-    });
+  skinSel.addEventListener("change", () => {
+    currentSkin = skinSel.value;
+    imgMang.src = currentSkin;
+    imgDeath.src = deadSkinMap[currentSkin];
+    speed = (level <= 2 ? 3 : 6); // Reset speed para evitar velocidad alta al cambiar skin
+  });
 
-    skinSel.addEventListener("change", () => {
-      imgMang.src = skinSel.value;
-      // Reiniciar el juego para evitar problema de velocidad y reajustar salto
-      resetGame();
+  function showLevelSelect() {
+    lvlSelDiv.style.display = "block";
+    lvlBtns.innerHTML = "";
+    unlockedLevels.forEach(lvl => {
+      const b = document.createElement("button");
+      b.textContent = "Nivel " + lvl;
+      b.onclick = () => {
+        level = lvl;
+        lvlSelDiv.style.display = "none";
+        resetGame();
+      };
+      lvlBtns.appendChild(b);
     });
-    imgMang.src = skinSel.value;
+  }
 
-    function showLevelSelect(){
-      lvlSelDiv.style.display = "block"; 
-      lvlBtns.innerHTML = "";
-      unlockedLevels.forEach(lvl => {
-        const b = document.createElement("button"); 
-        b.textContent = "Nivel " + lvl;
-        b.onclick = () => { level = lvl; lvlSelDiv.style.display = "none"; resetGame(); };
-        lvlBtns.appendChild(b);
+  function drawFloor() {
+    ctx.fillStyle = "#f5deb3";
+    ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
+  }
+
+  // Variables para nubes
+  let nubesArray = [];
+  function initNubes() {
+    nubesArray = [];
+    for (let i = 0; i < 5; i++) {
+      nubesArray.push({
+        x: Math.random() * canvas.width,
+        y: 30 + Math.random() * 50,
+        speed: 0.3 + Math.random() * 0.3
       });
     }
+  }
+  initNubes();
 
-    function drawFloor() {
-      ctx.fillStyle = "#f5deb3";
-      ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
-    }
+  function drawNubes() {
+    nubesArray.forEach(nube => {
+      ctx.drawImage(imgNubes, nube.x, nube.y, 100, 50);
+      nube.x -= nube.speed;
+      if (nube.x < -100) nube.x = canvas.width + 10;
+    });
+  }
 
-    function drawMang(){
+  function drawMang() {
+    if (!gameOver) {
       let w = mangonio.w;
       let h = mangonio.h;
-      if(skinSel.value == "mangoniofino.png") { w *= 0.8; }
-      else if(skinSel.value == "René.png") { h *= 0.9; }
+      if (currentSkin == "mangoniofino.png") w *= 0.8;
+      if (currentSkin == "René.png") h *= 0.9;
       ctx.drawImage(imgMang, mangonio.x, mangonio.y, w, h);
+    } else {
+      // Mostrar skin de muerte en la posición del jugador
+      let w = mangonio.w;
+      let h = mangonio.h;
+      if (currentSkin == "mangoniofino.png") w *= 0.8;
+      if (currentSkin == "René.png") h *= 0.9;
+      ctx.drawImage(imgDeath, mangonio.x, mangonio.y, w, h);
+    }
+  }
+
+  function drawCactus(c) {
+    ctx.fillStyle = "#2e8b57";
+    ctx.fillRect(c.x, c.y, c.w, c.h);
+  }
+
+  function drawManzana(m) {
+    ctx.drawImage(imgManzana, m.x, m.y, m.w, m.h);
+  }
+
+  function drawAgua(a) {
+    ctx.drawImage(imgAgua, a.x, a.y, 20, 30);
+  }
+
+  function update() {
+    if (gameOver || youWin) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    drawNubes();
+    drawFloor();
+
+    mangonio.vy += mangonio.g;
+    mangonio.y += mangonio.vy;
+    if (mangonio.y >= canvas.height - 60 - mangonio.h) {
+      mangonio.y = canvas.height - 60 - mangonio.h;
+      mangonio.vy = 0;
+      mangonio.grd = true;
+      jumps = 0;
     }
 
-    function drawCactus(c) { 
-      ctx.fillStyle = "#2e8b57"; 
-      ctx.fillRect(c.x, c.y, c.w, c.h); 
-    }
-    function drawManzana(m) { 
-      ctx.drawImage(imgManzana, m.x, m.y, m.w, m.h); 
-    }
-    function drawAgua(a) { 
-      ctx.drawImage(imgAgua, a.x, a.y, 20, 30); 
-    }
-    function drawMM(x) { 
-      ctx.drawImage(imgMM, x.x, x.y, 20, 20); 
+    drawMang();
+
+    if (frame % (level <= 2 ? 130 : 60) === 0) {
+      // Menos cactus en niveles 1 y 2, cactus 1/4 más pequeños
+      let obs = {
+        x: canvas.width,
+        y: canvas.height - 60 - 40,
+        w: 15,
+        h: 40,
+        type: 'cactus'
+      };
+      if (level >= 2 && Math.random() < 0.3) {
+        obs.type = 'manzana';
+        obs.w = obs.h = 30;
+        obs.y = 100;
+      }
+      obstacles.push(obs);
     }
 
-    function drawClouds() {
-      clouds.forEach(c => {
-        ctx.drawImage(imgNubes, c.x, c.y, c.w, c.h);
+    if (level >= 3 && obstacles.filter(o => o.type == 'cactus').length % 5 == 0 && Math.random() < 0.05) {
+      obstacles.push({
+        x: canvas.width,
+        y: canvas.height - 60 - 30,
+        w: 20,
+        h: 30,
+        type: 'agua'
       });
     }
 
-    function update() {
-      if(gameOver || youWin) return;
+    obstacles.forEach((o, i) => {
+      o.x -= speed;
+      if (o.type == 'cactus') drawCactus(o);
+      else if (o.type == 'manzana') drawManzana(o);
+      else if (o.type == 'agua') drawAgua(o);
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Nubes en fondo
-      drawClouds();
-
-      drawFloor();
-
-      mangonio.vy += mangonio.g; 
-      mangonio.y += mangonio.vy;
-      if(mangonio.y >= canvas.height - 60 - mangonio.h) {
-        mangonio.y = canvas.height - 60 - mangonio.h; 
-        mangonio.vy = 0; 
-        mangonio.grd = true; 
-        jumps = 0;
-      }
-
-      drawMang();
-
-      if(frame % (level <= 2 ? 120 : 60) == 0) {
-        let cactusW = 15;
-        let cactusH = 37.5;
-        let obs;
-        if(level <= 2) {
-          obs = { x: canvas.width, y: canvas.height - 60 - cactusH, w: cactusW, h: cactusH, type: 'cactus' };
+      // Colisiones
+      if (mangonio.x < o.x + o.w && mangonio.x + mangonio.w > o.x && mangonio.y + mangonio.h > o.y) {
+        if (o.type == 'agua') {
+          hydration = Math.min(100, hydration + 30);
+          hdLvlEl.style.width = hydration + '%';
+          obstacles.splice(i, 1);
+        } else if (o.type == 'manzana') {
+          score += 50;
+          scoreEl.textContent = `Puntos: ${score}`;
+          obstacles.splice(i, 1);
         } else {
-          if(Math.random() < 0.3) {
-            obs = { x: canvas.width, y: canvas.height - 60 - 30, w: 30, h: 30, type: 'manzana' };
-          } else {
-            obs = { x: canvas.width, y: canvas.height - 60 - cactusH, w: cactusW, h: cactusH, type: 'cactus' };
-          }
-        }
-        obstacles.push(obs);
-      }
-
-      if(level >= 3 && obstacles.filter(o => o.type == 'cactus').length % 5 == 0 && Math.random() < 0.05) {
-        obstacles.push({ x: canvas.width, y: canvas.height - 60 - 30, w: 20, h: 30, type: 'agua' });
-      }
-
-      if(level >= 4 && Math.random() < 0.005) {
-        obstacles.push({ x: canvas.width, y: canvas.height - 60 - 40, w: 20, h: 20, type: 'mm' });
-      }
-
-      obstacles.forEach((o, i) => {
-        o.x -= speed * (level == 4 && Math.random() < 0.5 ? 1.2 : 1);
-        if(o.type == 'cactus') drawCactus(o);
-        else if(o.type == 'manzana') drawManzana(o);
-        else if(o.type == 'agua') drawAgua(o);
-        else if(o.type == 'mm') drawMM(o);
-
-        if(
-          mangonio.x < o.x + o.w &&
-          mangonio.x + mangonio.w > o.x &&
-          mangonio.y + mangonio.h > o.y
-        ) {
-          if(o.type == 'agua') {
-            hydration = Math.min(100, hydration + 30);
-            hdLvlEl.style.width = hydration + '%';
-            obstacles.splice(i, 1);
-          }
-          else if(o.type == 'mm') {
-            speed = Math.max(2, speed - 2);
-            obstacles.splice(i, 1);
-          }
-          else { 
-            gameOver = true;
-            gameOverEl.innerHTML = getDeathMessage();
-            gameOverEl.style.display = "block";
-          }
-        }
-      });
-
-      obstacles = obstacles.filter(o => o.x + o.w > 0);
-
-      frame++;
-
-      if(frame % 5 == 0) {
-        score++;
-        scoreEl.textContent = `Puntos: ${score}`;
-      }
-
-      if(level >= 3) {
-        hydration -= 0.05;
-        hdLvlEl.style.width = hydration + '%';
-        if(hydration <= 0) {
+          // Muere y cambia skin a la de muerte
           gameOver = true;
-          gameOverEl.innerHTML = getDeathMessage();
           gameOverEl.style.display = "block";
+          setDeathMessage();
         }
       }
+    });
 
-      if(level >= 5) {
-        ctx.globalAlpha = 0.1 + Math.abs(Math.sin(frame / 100));
-      } else {
-        ctx.globalAlpha = 1;
-      }
+    obstacles = obstacles.filter(o => o.x + o.w > 0);
 
-      if(score >= 2000) {
-        youWin = true;
-        if(level < 5) {
-          lvlCompEl.style.display = "block";
-          lvlCompEl.innerHTML = "Nivel completado 👽<br>Presiona \"T\" para el siguiente nivel";
-        } else {
-          winEl.style.display = "block";
-          winEl.innerHTML = "Felicidades Completaste todos los niveles 🎂<br>Elige otro nivel abajo";
-        }
-      } else {
-        requestAnimationFrame(update);
-      }
-
-      // Mover nubes
-      clouds.forEach(c => {
-        c.x -= c.speed;
-        if(c.x + c.w < 0) c.x = canvas.width + Math.random() * 100;
-      });
+    frame++;
+    if (frame % 5 === 0) {
+      score++;
+      scoreEl.textContent = `Puntos: ${score}`;
     }
-  </script>
+
+    if (level >= 3) {
+      hydration -= 0.05;
+      hdLvlEl.style.width = hydration + '%';
+      if (hydration <= 0) {
+        gameOver = true;
+        gameOverEl.style.display = "block";
+        setDeathMessage();
+      }
+    }
+
+    if (level >= 5) ctx.globalAlpha = 0.1 + Math.abs(Math.sin(frame / 100));
+    else ctx.globalAlpha = 1;
+
+    if (score >= 2000) {
+      youWin = true;
+      if (level < 5) lvlCompEl.style.display = "block";
+      else winEl.style.display = "block";
+    } else {
+      requestAnimationFrame(update);
+    }
+  }
+
+  function setDeathMessage() {
+    // Mensajes personalizados según skin
+    if (currentSkin === "mangonio.png") {
+      gameOverEl.innerHTML = 'Haz muerto, Mangonio está muy triste 😭<br>Presiona "R" para reiniciar';
+    } else if (currentSkin === "mangoniofino.png") {
+      gameOverEl.innerHTML = 'Haz muerto pero con estilo bro jijiji 🙉.<br>Presiona "R" para reiniciar';
+    } else if (currentSkin === "René.png") {
+      gameOverEl.innerHTML = 'René murió... pero siempre será el más guapo de la Nación 👦🏿<br>Presiona "R" para reiniciar';
+    }
+  }
+
+  resetGame();
+</script>
 </body>
 </html>
