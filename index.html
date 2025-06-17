@@ -2,11 +2,11 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Esquiva Mangonio Mejorado</title>
+  <title>Esquiva Mangonio</title>
   <style>
     body {
       margin: 0;
-      background: linear-gradient(to top, #87ceeb, #d0f0fd); /* cielo azul claro */
+      background: linear-gradient(to top, #87ceeb, #d0f0fd);
       overflow: hidden;
       font-family: Arial, sans-serif;
     }
@@ -15,7 +15,7 @@
       margin: 20px auto;
       width: 800px;
       height: 400px;
-      background: #f0e6d2; /* suelo arenoso */
+      background: #f0e6d2;
       border: 3px solid #5c432d;
       border-radius: 8px;
       overflow: hidden;
@@ -56,30 +56,35 @@
 (() => {
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
-
-  // Variables básicas
   const groundY = 350;
   let gameOver = false;
   let score = 0;
   let obstacleSpeed = 5;
-
-  // Skin selection y persistencia en localStorage
+  let currentLevel = 1;
   const skins = {
     mangonio: 'mangonio.png',
-    mangoniofino: 'mangoniofino.png',
+    mangoniofino: 'mangoniofino.png'
+  };
+  const deathSkins = {
+    mangonio: 'mangonio1.png',
+    mangoniofino: 'mangoniofino2.png'
   };
   let currentSkin = localStorage.getItem('selectedSkin') || 'mangonio';
 
-  // Cargar imágenes
-  const playerImg = new Image();
-  const playerImgFino = new Image();
-  playerImg.src = skins.mangonio;
-  playerImgFino.src = skins.mangoniofino;
+  const playerImgs = {
+    mangonio: new Image(),
+    mangoniofino: new Image()
+  };
+  const deathImgs = {
+    mangonio: new Image(),
+    mangoniofino: new Image()
+  };
+  playerImgs.mangonio.src = skins.mangonio;
+  playerImgs.mangoniofino.src = skins.mangoniofino;
+  deathImgs.mangonio.src = deathSkins.mangonio;
+  deathImgs.mangoniofino.src = deathSkins.mangoniofino;
 
-  // Obstáculos (cactus)
   let obstacles = [];
-
-  // Player
   const player = {
     x: 100,
     y: groundY - 50,
@@ -89,12 +94,12 @@
     jumping: false,
     jumpStrength: 15,
     gravity: 0.8,
+    dead: false,
     get image() {
-      return currentSkin === 'mangonio' ? playerImg : playerImgFino;
+      return this.dead ? deathImgs[currentSkin] : playerImgs[currentSkin];
     }
   };
 
-  // Eventos para selector de skins
   document.getElementById('skinDefault').addEventListener('click', () => {
     currentSkin = 'mangonio';
     localStorage.setItem('selectedSkin', currentSkin);
@@ -112,29 +117,16 @@
   }
   updateSkinButtons();
 
-  // Función para crear obstáculos (cactus)
   function createObstacle() {
-    // Cactus con textura (añadiremos puntitos y sombra)
     const height = 50 + Math.random() * 30;
-    obstacles.push({
-      x: canvas.width + 20,
-      y: groundY - height,
-      width: 20,
-      height: height,
-    });
+    obstacles.push({ x: canvas.width + 20, y: groundY - height, width: 20, height });
   }
 
-  // Dibuja cactus con textura
   function drawCactus(x, y, width, height) {
-    // Base cactus
-    ctx.fillStyle = '#2e8b57'; // verde base
+    ctx.fillStyle = '#2e8b57';
     ctx.fillRect(x, y, width, height);
-
-    // Sombras verdes oscuras en el lado izquierdo
     ctx.fillStyle = 'rgba(0, 50, 0, 0.5)';
     ctx.fillRect(x, y, width / 3, height);
-
-    // Puntitos negros (picos)
     ctx.fillStyle = 'black';
     for (let i = 0; i < 15; i++) {
       const px = x + Math.random() * width;
@@ -145,37 +137,31 @@
     }
   }
 
-  // Dibuja rocas pequeñas como textura en el fondo
   function drawRockTexture() {
-    const rockColors = ['#8B7D7B', '#7F6A5F', '#A0938F'];
+    const colors = ['#8B7D7B', '#7F6A5F', '#A0938F'];
     for (let i = 0; i < 50; i++) {
       const x = Math.random() * canvas.width;
       const y = groundY + 10 + Math.random() * 30;
       const size = 3 + Math.random() * 5;
-      const color = rockColors[Math.floor(Math.random() * rockColors.length)];
-      ctx.fillStyle = color;
+      ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
       ctx.beginPath();
       ctx.ellipse(x, y, size, size / 2, Math.random() * Math.PI, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  // Dibuja el suelo
   function drawGround() {
     ctx.fillStyle = '#d9c99b';
     ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
   }
 
-  // Dibuja jugador
   function drawPlayer() {
     ctx.drawImage(player.image, player.x, player.y, player.width, player.height);
   }
 
-  // Actualiza la física del jugador
   function updatePlayer() {
     player.y += player.dy;
     player.dy += player.gravity;
-
     if (player.y > groundY - player.height) {
       player.y = groundY - player.height;
       player.jumping = false;
@@ -183,33 +169,24 @@
     }
   }
 
-  // Detecta colisión entre jugador y obstáculos
   function detectCollision() {
     for (let obs of obstacles) {
-      if (
-        player.x < obs.x + obs.width &&
-        player.x + player.width > obs.x &&
-        player.y < obs.y + obs.height &&
-        player.y + player.height > obs.y
-      ) {
+      if (player.x < obs.x + obs.width && player.x + player.width > obs.x && player.y < obs.y + obs.height && player.y + player.height > obs.y) {
         gameOver = true;
+        player.dead = true;
       }
     }
   }
 
-  // Manejo de salto
   window.addEventListener('keydown', e => {
     if ((e.code === 'Space' || e.code === 'ArrowUp') && !player.jumping && !gameOver) {
-      player.dy = -player.jumpStrength;
+      const jumpMult = currentLevel <= 2 ? 0.95 : 1;
+      player.dy = -player.jumpStrength * jumpMult;
       player.jumping = true;
     }
-    // Reiniciar si juego terminado
-    if (e.code === 'Enter' && gameOver) {
-      resetGame();
-    }
+    if (e.code === 'Enter' && gameOver) resetGame();
   });
 
-  // Resetear juego
   function resetGame() {
     gameOver = false;
     score = 0;
@@ -217,54 +194,34 @@
     player.y = groundY - player.height;
     player.dy = 0;
     player.jumping = false;
+    player.dead = false;
+    obstacleSpeed = 5;
+    currentLevel = 1;
   }
 
-  // Update juego
   function update() {
     if (gameOver) return;
-
-    // Mover obstáculos
-    for (let obs of obstacles) {
-      obs.x -= obstacleSpeed;
-    }
-
-    // Eliminar obstáculos fuera de pantalla
+    for (let obs of obstacles) obs.x -= obstacleSpeed;
     obstacles = obstacles.filter(obs => obs.x + obs.width > 0);
-
-    // Crear nuevos obstáculos aleatoriamente
-    if (Math.random() < 0.02) {
-      createObstacle();
-    }
-
+    if (Math.random() < 0.02) createObstacle();
     updatePlayer();
     detectCollision();
     score += 0.1;
     if (score > 0 && score % 100 < 0.1) {
-      obstacleSpeed += 0.5; // Incrementar dificultad
+      obstacleSpeed += 0.5;
+      currentLevel++;
     }
   }
 
-  // Dibujar todo
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Fondo cielo ya con CSS, aquí sólo suelo y texturas
-
     drawGround();
     drawRockTexture();
-
-    // Dibuja obstáculos cactus
-    for (let obs of obstacles) {
-      drawCactus(obs.x, obs.y, obs.width, obs.height);
-    }
-
+    for (let obs of obstacles) drawCactus(obs.x, obs.y, obs.width, obs.height);
     drawPlayer();
-
-    // Puntaje
     ctx.fillStyle = 'black';
     ctx.font = '20px Arial';
     ctx.fillText(`Puntaje: ${Math.floor(score)}`, 10, 30);
-
     if (gameOver) {
       ctx.fillStyle = 'rgba(0,0,0,0.5)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -278,16 +235,14 @@
     }
   }
 
-  // Loop principal
   function gameLoop() {
     update();
     draw();
     requestAnimationFrame(gameLoop);
   }
 
-  // Esperar que las imágenes carguen para empezar
   function start() {
-    if (!playerImg.complete || !playerImgFino.complete) {
+    if (!playerImgs.mangonio.complete || !playerImgs.mangoniofino.complete) {
       setTimeout(start, 100);
       return;
     }
