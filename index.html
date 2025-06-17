@@ -61,32 +61,32 @@
     const winMessage = document.getElementById("winMessage");
     const skinSelector = document.getElementById("skinSelector");
 
-    let mangonioImg = new Image();
-    let deathImg = new Image();
+    let currentSkin = skinSelector.value;
+    const mangonioImg = new Image();
+    mangonioImg.src = currentSkin;
 
     const goal = 2500;
     const floorHeight = 60;
 
     let mangonio, obstacles, speed, frame, score, gameOver, youWin;
     let speedStartTime = 0;
+    let deadImage = null;
 
-    function updateSkin() {
-      const skin = skinSelector.value;
-      mangonioImg.src = skin;
-      if (skin === "René.png") {
-        deathImg.src = "rene1.png";
-      } else {
-        const deathSkin = skin.replace(".png", "1.png");
-        deathImg.src = deathSkin;
-      }
+    function getDeathSkin(skinName) {
+      if (skinName.toLowerCase() === "rené.png") return "rene1.png";
+      const base = skinName.split(".")[0];
+      return base + "1.png";
     }
 
     function resetGame() {
-      updateSkin();
+      currentSkin = skinSelector.value;
+      mangonioImg.src = currentSkin;
+      deadImage = null;
+
       mangonio = {
         x: 60,
         y: canvas.height - floorHeight - 60,
-        width: skinSelector.value === "pablito.png" ? 60 : 50,
+        width: 50,
         height: 70,
         vy: 0,
         jumpPower: -13,
@@ -112,11 +112,8 @@
     }
 
     function drawMangonio() {
-      ctx.drawImage(mangonioImg, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
-    }
-
-    function drawMangonioDeath() {
-      ctx.drawImage(deathImg, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
+      const imgToUse = gameOver && deadImage ? deadImage : mangonioImg;
+      ctx.drawImage(imgToUse, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
     }
 
     function drawCactus(cactus) {
@@ -176,7 +173,11 @@
         ) {
           gameOver = true;
           gameOverText.style.display = "block";
-          drawMangonioDeath();
+          deadImage = new Image();
+          deadImage.src = getDeathSkin(currentSkin);
+          deadImage.onload = () => {
+            drawMangonio();
+          };
           return;
         }
       }
@@ -219,8 +220,8 @@
     });
 
     skinSelector.addEventListener("change", () => {
-      updateSkin();
-      resetGame();
+      currentSkin = skinSelector.value;
+      mangonioImg.src = currentSkin;
     });
 
     mangonioImg.onload = () => {
