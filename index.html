@@ -1,26 +1,170 @@
-// Solo lo básico que afecta aparición cactus y objetos
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Esquiva Mangonio</title>
+  <style>
+    body {
+      margin: 0;
+      background: #def;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      margin: auto;
+      background: #b2ebf2;
+      border: 5px solid #333;
+    }
+    #gameOver, #winMessage {
+      position: absolute;
+      top: 30%;
+      width: 100%;
+      text-align: center;
+      font-size: 2em;
+      color: red;
+      display: none;
+    }
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 20px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    #powerUpTimer {
+      position: absolute;
+      top: 40px;
+      left: 20px;
+      font-size: 20px;
+      font-family: 'Comic Sans MS', cursive, sans-serif;
+      color: red;
+      display: none;
+    }
+    #controls {
+      position: absolute;
+      bottom: 10px;
+      left: 20px;
+      font-size: 16px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameOver">Haz muerto Mangonio está muy triste 😭<br>Presiona "R" para reiniciar</div>
+  <div id="winMessage">Ganaste, Mangonio está orgulloso 🙉<br>Puntaje máximo alcanzado</div>
+  <div id="score">Puntos: 0</div>
+  <div id="powerUpTimer"></div>
+  <div id="controls">Controles: Espacio = Saltar, Flecha Abajo = Agacharse, R = Reiniciar, 1 = Mangonio, 2 = René</div>
+  <canvas id="game" width="800" height="300"></canvas>
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const scoreDisplay = document.getElementById("score");
+    const gameOverText = document.getElementById("gameOver");
+    const winMessage = document.getElementById("winMessage");
+    const powerUpTimer = document.getElementById("powerUpTimer");
 
-// Nivel basado en score o frame, para controlar aparición
-const nivel = Math.floor(score / 500) + 1;
+    const skins = {
+      mangonio: { normal: "mangonio.png", death: "mangonio1.png" },
+      rene: { normal: "rene.png", death: "rene1.png" }
+    };
 
-// Aparece cactus SIEMPRE en todos niveles (cada cierto tiempo)
-if (frame % 60 === 0) {
-  obstacles.push({type: "cactus", x: canvas.width, y: canvas.height - floorHeight - 50, width: 20, height: 50});
-}
+    let currentSkin = "mangonio";
+    let skinImage = new Image();
+    skinImage.src = skins[currentSkin].normal;
 
-// Manzanas desde nivel 2
-if (nivel >= 2 && frame % 120 === 0) {
-  obstacles.push({type: "manzana", x: canvas.width, y: canvas.height - floorHeight - 120, width: 40, height: 40, vy: 2});
-}
+    const manzanaImg = new Image();
+    manzanaImg.src = "manzana.png";
+    const aguaImg = new Image();
+    aguaImg.src = "botella.png";
+    const emanemsImg = new Image();
+    emanemsImg.src = "EMANEMS.png";
 
-// Botellas desde nivel 2
-if (nivel >= 2 && frame % 300 === 0) {
-  obstacles.push({type: "botella", x: canvas.width, y: canvas.height - floorHeight - 40, width: 30, height: 40});
-}
+    const goal = 2500;
+    const floorHeight = 60;
 
-// M&Ms desde nivel 1 con probabilidad 25%
-if (nivel >= 1 && frame % 60 === 0) {
-  if (Math.random() < 0.25) {
-    obstacles.push({type: "mms", x: canvas.width, y: canvas.height - floorHeight - 45, width: 30, height: 30});
-  }
-}
+    let mangonio, obstacles, powerUps, speed, frame, score, gameOver, youWin, level;
+    let hydration = 100;
+    let powerUpActive = false;
+    let powerUpCounter = 0;
+    let isDucking = false;
+
+    function resetGame() {
+      mangonio = {
+        x: 60,
+        y: canvas.height - floorHeight - 60,
+        width: 50,
+        height: 70,
+        originalHeight: 70,
+        vy: 0,
+        jumpPower: -13,
+        gravity: 0.9,
+        grounded: true,
+        invulnerable: false
+      };
+      obstacles = [];
+      powerUps = [];
+      speed = 6;
+      frame = 0;
+      score = 0;
+      hydration = 100;
+      level = 1;
+      gameOver = false;
+      youWin = false;
+      powerUpActive = false;
+      isDucking = false;
+      powerUpTimer.style.display = "none";
+      gameOverText.style.display = "none";
+      winMessage.style.display = "none";
+      scoreDisplay.textContent = "Puntos: 0";
+      skinImage.src = skins[currentSkin].normal;
+      requestAnimationFrame(update);
+    }
+
+    function drawMangonio() {
+      if (powerUpActive) ctx.filter = "hue-rotate(270deg)";
+      ctx.drawImage(skinImage, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
+      ctx.filter = "none";
+    }
+
+    function handleDucking() {
+      if (isDucking) {
+        mangonio.height = mangonio.originalHeight / 2;
+        mangonio.y = canvas.height - floorHeight - mangonio.height;
+      } else {
+        mangonio.height = mangonio.originalHeight;
+        mangonio.y = canvas.height - floorHeight - mangonio.height;
+      }
+    }
+
+    window.addEventListener("keydown", e => {
+      if (e.code === "Space" && mangonio.grounded && !gameOver && !youWin) {
+        mangonio.vy = mangonio.jumpPower;
+        mangonio.grounded = false;
+      }
+      if (e.code === "ArrowDown") {
+        isDucking = true;
+      }
+      if (e.code === "KeyR" && (gameOver || youWin)) {
+        resetGame();
+      }
+      if (e.code === "Digit1") {
+        currentSkin = "mangonio";
+        skinImage.src = skins[currentSkin].normal;
+      }
+      if (e.code === "Digit2") {
+        currentSkin = "rene";
+        skinImage.src = skins[currentSkin].normal;
+      }
+    });
+
+    window.addEventListener("keyup", e => {
+      if (e.code === "ArrowDown") {
+        isDucking = false;
+      }
+    });
+
+    // ... aquí continúa el resto del código del juego como colisiones, power-ups, niveles, etc.
+  </script>
+</body>
+</html>
