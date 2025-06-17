@@ -61,8 +61,8 @@
     const winMessage = document.getElementById("winMessage");
     const skinSelector = document.getElementById("skinSelector");
 
-    const mangonioImg = new Image();
-    mangonioImg.src = skinSelector.value;
+    let mangonioImg = new Image();
+    let deathImg = new Image();
 
     const goal = 2500;
     const floorHeight = 60;
@@ -70,11 +70,23 @@
     let mangonio, obstacles, speed, frame, score, gameOver, youWin;
     let speedStartTime = 0;
 
+    function updateSkin() {
+      const skin = skinSelector.value;
+      mangonioImg.src = skin;
+      if (skin === "René.png") {
+        deathImg.src = "rene1.png";
+      } else {
+        const deathSkin = skin.replace(".png", "1.png");
+        deathImg.src = deathSkin;
+      }
+    }
+
     function resetGame() {
+      updateSkin();
       mangonio = {
         x: 60,
         y: canvas.height - floorHeight - 60,
-        width: 50,
+        width: skinSelector.value === "pablito.png" ? 60 : 50,
         height: 70,
         vy: 0,
         jumpPower: -13,
@@ -101,6 +113,10 @@
 
     function drawMangonio() {
       ctx.drawImage(mangonioImg, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
+    }
+
+    function drawMangonioDeath() {
+      ctx.drawImage(deathImg, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
     }
 
     function drawCactus(cactus) {
@@ -160,6 +176,7 @@
         ) {
           gameOver = true;
           gameOverText.style.display = "block";
+          drawMangonioDeath();
           return;
         }
       }
@@ -202,7 +219,8 @@
     });
 
     skinSelector.addEventListener("change", () => {
-      mangonioImg.src = skinSelector.value;
+      updateSkin();
+      resetGame();
     });
 
     mangonioImg.onload = () => {
