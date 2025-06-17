@@ -33,36 +33,32 @@
     }
     #skinSelector {
       position: absolute;
-      bottom: 10px;
+      bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background: white;
-      padding: 5px 10px;
-      border-radius: 5px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-      font-family: sans-serif;
+      font-size: 16px;
+      padding: 8px;
     }
   </style>
 </head>
 <body>
-  <div id="gameOver"> Haz muerto Mangonio esta muy triste😭 <br>Presiona "R" para reiniciar</div>
-  <div id="winMessage"> Ganaste Mangonio esta orgulloso🙉 <br>Puntaje máximo alcanzado</div>
+  <div id="gameOver">Haz muerto. Mangonio está muy triste 😭<br>Presiona "R" para reiniciar</div>
+  <div id="winMessage">¡Ganaste! Mangonio está orgulloso 🙉<br>Puntaje máximo alcanzado</div>
   <div id="score">Puntos: 0</div>
-  <div id="skinSelector">
-    <label for="skin">Selecciona skin: </label>
-    <select id="skin">
-      <option value="mangonio.png">Mangonio</option>
-      <option value="mangoniofino.png">Mangonio Fino</option>
-    </select>
-  </div>
+  <select id="skinSelector">
+    <option value="mangonio.png">Mangonio</option>
+    <option value="mangoniofino.png">Mangonio Fino</option>
+    <option value="René.png">René</option>
+  </select>
   <canvas id="game" width="800" height="300"></canvas>
+
   <script>
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
     const scoreDisplay = document.getElementById("score");
     const gameOverText = document.getElementById("gameOver");
     const winMessage = document.getElementById("winMessage");
-    const skinSelector = document.getElementById("skin");
+    const skinSelector = document.getElementById("skinSelector");
 
     const mangonioImg = new Image();
     mangonioImg.src = skinSelector.value;
@@ -71,10 +67,6 @@
     const floorHeight = 60;
 
     let mangonio, obstacles, speed, frame, score, gameOver, youWin;
-
-    skinSelector.addEventListener("change", () => {
-      mangonioImg.src = skinSelector.value;
-    });
 
     function resetGame() {
       mangonio = {
@@ -175,7 +167,6 @@
       if (frame % 5 === 0) {
         score++;
         scoreDisplay.textContent = `Puntos: ${score}`;
-
         if (score % 100 === 0 && speed < 16) {
           speed += 0.5;
         }
@@ -199,6 +190,10 @@
       if (e.code === "KeyR" && (gameOver || youWin)) {
         resetGame();
       }
+    });
+
+    skinSelector.addEventListener("change", () => {
+      mangonioImg.src = skinSelector.value;
     });
 
     mangonioImg.onload = () => {
