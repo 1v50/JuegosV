@@ -54,6 +54,7 @@
     <option value="kuchau.png">Kuchau</option>
     <option value="polariza.png">Polariza</option>
     <option value="GilShiny.png">Gil Shiny</option>
+    <option value="capicastor.png">CapiCastor</option>
   </select>
   <canvas id="game" width="800" height="300"></canvas>
 
@@ -66,29 +67,6 @@
     const skinSelector = document.getElementById("skinSelector");
 
     const mangonioImg = new Image();
-    let allowedSkin = "mangonio.png";
-    let gilShinyUnlocked = false;
-
-    skinSelector.addEventListener("change", () => {
-      const selectedSkin = skinSelector.value;
-
-      if (selectedSkin === "GilShiny.png" && !gilShinyUnlocked) {
-        const inputCode = prompt("Introduce el código para desbloquear esta skin:");
-        if (inputCode === "GilGuapo") {
-          gilShinyUnlocked = true;
-          mangonioImg.src = selectedSkin;
-        } else {
-          alert("Código incorrecto.");
-          skinSelector.value = allowedSkin;
-          return;
-        }
-      } else {
-        mangonioImg.src = selectedSkin;
-      }
-
-      allowedSkin = selectedSkin;
-    });
-
     mangonioImg.src = skinSelector.value;
 
     const goal = 2500;
@@ -182,10 +160,16 @@
         c.x -= speed;
         drawCactus(c);
 
+        // Hitbox reducida un 10%
+        const hitboxX = mangonio.x + mangonio.width * 0.05;
+        const hitboxY = mangonio.y + mangonio.height * 0.05;
+        const hitboxWidth = mangonio.width * 0.9;
+        const hitboxHeight = mangonio.height * 0.9;
+
         if (
-          mangonio.x < c.x + c.width &&
-          mangonio.x + mangonio.width > c.x &&
-          mangonio.y + mangonio.height > c.y
+          hitboxX < c.x + c.width &&
+          hitboxX + hitboxWidth > c.x &&
+          hitboxY + hitboxHeight > c.y
         ) {
           gameOver = true;
           gameOverText.style.display = "block";
@@ -227,6 +211,22 @@
       }
       if (e.code === "KeyR" && (gameOver || youWin)) {
         resetGame();
+      }
+    });
+
+    skinSelector.addEventListener("change", () => {
+      const selectedSkin = skinSelector.value;
+
+      if (selectedSkin === "GilShiny.png") {
+        const code = prompt("Introduce el código para desbloquear esta skin:");
+        if (code === "GilGuapo") {
+          mangonioImg.src = selectedSkin;
+        } else {
+          alert("Código incorrecto.");
+          skinSelector.value = mangonioImg.src.split("/").pop();
+        }
+      } else {
+        mangonioImg.src = selectedSkin;
       }
     });
 
