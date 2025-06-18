@@ -192,45 +192,63 @@
         }
       }
 
-      obstacles = obstacles.filter(c => {
+      for (let i = 0; i < obstacles.length; i++) {
+        let c = obstacles[i];
         c.x -= speed;
         drawObstacle(c);
+
         const hitbox = {
           x: mangonio.x + 5,
-          y: mangonio.y + (crouching ? 10 : 5),
+          y: mangonio.y + 5,
           width: mangonio.width * 0.9,
-          height: mangonio.height * 0.9 - (crouching ? 5 : 0),
+          height: mangonio.height * 0.9,
         };
-        if (hitbox.x < c.x + c.width && hitbox.x + hitbox.width > c.x && hitbox.y + hitbox.height > c.y) {
+
+        if (
+          hitbox.x < c.x + c.width &&
+          hitbox.x + hitbox.width > c.x &&
+          hitbox.y + hitbox.height > c.y
+        ) {
           gameOver = true;
           gameOverText.style.display = "block";
-          return false;
+          return;
         }
-        return c.x + c.width > 0;
-      });
+      }
 
-      manzanas = manzanas.filter(m => {
+      for (let i = 0; i < manzanas.length; i++) {
+        let m = manzanas[i];
         m.x -= speed;
         drawManzana(m);
+
         const hitbox = {
           x: mangonio.x + 5,
-          y: mangonio.y + (crouching ? 10 : 5),
+          y: mangonio.y + 5,
           width: mangonio.width * 0.9,
-          height: mangonio.height * 0.9 - (crouching ? 5 : 0),
+          height: mangonio.height * 0.9,
         };
-        if (hitbox.x < m.x + m.width && hitbox.x + hitbox.width > m.x && hitbox.y + hitbox.height > m.y) {
+
+        if (
+          hitbox.x < m.x + m.width &&
+          hitbox.x + hitbox.width > m.x &&
+          hitbox.y + hitbox.height > m.y
+        ) {
           gameOver = true;
           gameOverText.style.display = "block";
-          return false;
+          return;
         }
-        return m.x + m.width > 0;
-      });
+      }
+
+      obstacles = obstacles.filter(c => c.x + c.width > 0);
+      manzanas = manzanas.filter(m => m.x + m.width > 0);
 
       frame++;
+
       if (frame % 5 === 0) {
         score++;
-        scoreDisplay.textContent = `Puntos: ${score}`;
-        if (score % 100 === 0 && speed < 16) speed += 0.5;
+        scoreDisplay.textContent = Puntos: ${score};
+        if (score % 100 === 0 && speed < 16) {
+          speed += 0.5;
+        }
       }
 
       if (score >= goal) {
