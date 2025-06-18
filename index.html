@@ -253,12 +253,15 @@
       requestAnimationFrame(update);
     }
 
+    let crouchKeys = new Set();
+
     window.addEventListener("keydown", e => {
       if (e.code === "Space" && mangonio.grounded && !gameOver && !youWin) {
         mangonio.vy = mangonio.jumpPower;
         mangonio.grounded = false;
       }
-      if (e.code === "ArrowDown") {
+      if (e.code === "ArrowDown" || e.code === "KeyB") {
+        crouchKeys.add(e.code);
         isCrouching = true;
       }
       if (e.code === "KeyR" && (gameOver || youWin)) {
@@ -267,8 +270,11 @@
     });
 
     window.addEventListener("keyup", e => {
-      if (e.code === "ArrowDown") {
-        isCrouching = false;
+      if (e.code === "ArrowDown" || e.code === "KeyB") {
+        crouchKeys.delete(e.code);
+        if (crouchKeys.size === 0) {
+          isCrouching = false;
+        }
       }
     });
 
