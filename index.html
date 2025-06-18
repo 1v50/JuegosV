@@ -12,6 +12,7 @@
     canvas {
       display: block;
       margin: auto;
+      background: #b2ebf2;
       border: 5px solid #333;
     }
     #gameOver, #winMessage {
@@ -64,31 +65,38 @@
     const skinSelector = document.getElementById("skinSelector");
 
     const mangonioImg = new Image();
-    const solImg = new Image();
-    const lunaImg = new Image();
     mangonioImg.src = skinSelector.value;
-    solImg.src = "sol.png";
-    lunaImg.src = "luna.png";
 
     const goal = 2500;
     const floorHeight = 60;
-    let mangonio, obstacles, speed, frame, score, gameOver, youWin, isDay = true, lastToggleTime = 0;
 
-    // Cargar imágenes y asegurarse que todo esté listo
-    let loadedImages = 0;
-    function checkAllLoaded() {
-      loadedImages++;
-      if (loadedImages >= 3) {
-        resetGame();
-      }
+    let mangonio, obstacles, speed, frame, score, gameOver, youWin;
+    let speedStartTime = 0;
+
+    // Estado batería (para futuras mejoras)
+    let batteryInfo = {
+      charging: true,
+      level: 1,
+      savingMode: false
+    };
+
+    // Detectar estado batería si está disponible
+    if ('getBattery' in navigator) {
+      navigator.getBattery().then(battery => {
+        function updateBatteryInfo() {
+          batteryInfo.charging = battery.charging;
+          batteryInfo.level = battery.level; // 0 a 1
+          batteryInfo.savingMode = battery.level <= 0.2 && !battery.charging;
+          console.log(`Batería: ${(battery.level*100).toFixed(0)}%, Cargando: ${battery.charging}, Ahorro: ${batteryInfo.savingMode}`);
+        }
+        updateBatteryInfo();
+
+        battery.addEventListener('chargingchange', updateBatteryInfo);
+        battery.addEventListener('levelchange', updateBatteryInfo);
+      });
+    } else {
+      console.log("API de batería no soportada en este navegador");
     }
-    mangonioImg.onload = checkAllLoaded;
-    solImg.onload = checkAllLoaded;
-    lunaImg.onload = checkAllLoaded;
-
-    skinSelector.addEventListener("change", () => {
-      mangonioImg.src = skinSelector.value;
-    });
 
     function resetGame() {
       mangonio = {
@@ -101,16 +109,18 @@
         gravity: 0.9,
         grounded: true
       };
+
       obstacles = [];
       speed = 6;
       frame = 0;
       score = 0;
       gameOver = false;
       youWin = false;
-      lastToggleTime = performance.now();
+      speedStartTime = performance.now();
       gameOverText.style.display = "none";
       winMessage.style.display = "none";
       scoreDisplay.textContent = "Puntos: 0";
+
       requestAnimationFrame(update);
     }
 
@@ -123,11 +133,11 @@
       ctx.drawImage(mangonioImg, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
     }
 
-    function drawCactus(c) {
+    function drawCactus(cactus) {
       ctx.fillStyle = "#2e8b57";
-      ctx.fillRect(c.x, c.y, c.width, c.height);
-      ctx.fillRect(c.x - 10, c.y + 10, 8, 20);
-      ctx.fillRect(c.x + c.width, c.y + 10, 8, 20);
+      ctx.fillRect(cactus.x, cactus.y, cactus.width, cactus.height);
+      ctx.fillRect(cactus.x - 10, cactus.y + 10, 8, 20);
+      ctx.fillRect(cactus.x + cactus.width, cactus.y + 10, 8, 20);
     }
 
     function drawWin() {
@@ -142,26 +152,11 @@
       }
     }
 
-    function drawSky() {
-      ctx.fillStyle = isDay ? "#b2ebf2" : "#001d3d";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-
-    function drawSunOrMoon() {
-      const img = isDay ? solImg : lunaImg;
-      ctx.drawImage(img, canvas.width - 80, 20, 50, 50);
-    }
-
     function update() {
       if (gameOver || youWin) return;
 
-      const now = performance.now();
-      if (now - lastToggleTime > 40000) { // 40 segundos
-        isDay = !isDay;
-        lastToggleTime = now;
-      }
-
-      drawSky();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawFloor();
 
       mangonio.vy += mangonio.gravity;
       mangonio.y += mangonio.vy;
@@ -172,8 +167,6 @@
         mangonio.grounded = true;
       }
 
-      drawFloor();
-      drawSunOrMoon();
       drawMangonio();
 
       if (frame % 60 === 0) {
@@ -189,6 +182,7 @@
         let c = obstacles[i];
         c.x -= speed;
         drawCactus(c);
+
         if (
           mangonio.x < c.x + c.width &&
           mangonio.x + mangonio.width > c.x &&
@@ -201,7 +195,14 @@
       }
 
       obstacles = obstacles.filter(c => c.x + c.width > 0);
+
       frame++;
+
+      // Aumenta velocidad después de 10 segundos
+      const elapsedSeconds = (performance.now() - speedStartTime) / 1000;
+      if (elapsedSeconds > 10 && speed < 8) {
+        speed = 8;
+      }
 
       if (frame % 5 === 0) {
         score++;
@@ -230,6 +231,14 @@
         resetGame();
       }
     });
+
+    skinSelector.addEventListener("change", () => {
+      mangonioImg.src = skinSelector.value;
+    });
+
+    mangonioImg.onload = () => {
+      resetGame();
+    };
   </script>
 </body>
 </html>
