@@ -8,6 +8,7 @@
       margin: 0;
       background: #def;
       overflow: hidden;
+      font-family: Arial, sans-serif;
     }
     canvas {
       display: block;
@@ -24,12 +25,21 @@
       color: red;
       display: none;
     }
-    #score {
+    #score, #coinsDisplay {
       position: absolute;
       top: 10px;
-      left: 20px;
       font-size: 20px;
       font-weight: bold;
+      background: whitecc;
+      padding: 4px 8px;
+      border-radius: 6px;
+      user-select: none;
+    }
+    #score {
+      left: 20px;
+    }
+    #coinsDisplay {
+      left: 150px;
     }
     #skinSelector {
       position: absolute;
@@ -39,12 +49,80 @@
       font-size: 16px;
       padding: 8px;
     }
+    #shopBtn {
+      position: absolute;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 16px;
+      font-size: 16px;
+      cursor: pointer;
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+    }
+    #shopModal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 320px;
+      background: white;
+      border: 2px solid #333;
+      padding: 16px;
+      display: none;
+      z-index: 100;
+      box-shadow: 0 0 15px rgba(0,0,0,0.5);
+    }
+    #shopModal h2 {
+      margin-top: 0;
+      margin-bottom: 12px;
+    }
+    .shopItem {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 6px;
+    }
+    .shopItem img {
+      width: 40px;
+      height: 56px;
+      object-fit: contain;
+      border: 1px solid #999;
+    }
+    .buyBtn {
+      background: #2196f3;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .buyBtn:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    #closeShopBtn {
+      margin-top: 12px;
+      padding: 6px 10px;
+      background: #f44336;
+      border: none;
+      color: white;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
   <div id="gameOver">Haz muerto, Mangonio está muy triste 😭<br>Presiona "R" para reiniciar</div>
   <div id="winMessage">Ganaste, Mangonio está orgulloso 🙉<br>Puntaje máximo alcanzado</div>
   <div id="score">Puntos: 0</div>
+  <div id="coinsDisplay">Monedas: 0</div>
   <select id="skinSelector">
     <option value="mangonio.png">Mangonio</option>
     <option value="mangoniofino.png">Mangonio Fino</option>
@@ -54,15 +132,28 @@
     <option value="kuchau.png">Kuchau</option>
     <option value="polariza.png">Polariza</option>
   </select>
+  <button id="shopBtn">Tienda 🛒</button>
   <canvas id="game" width="800" height="300"></canvas>
+
+  <!-- Ventana tienda -->
+  <div id="shopModal">
+    <h2>Tienda de Skins</h2>
+    <div id="shopItems"></div>
+    <button id="closeShopBtn">Cerrar</button>
+  </div>
 
   <script>
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
     const scoreDisplay = document.getElementById("score");
+    const coinsDisplay = document.getElementById("coinsDisplay");
     const gameOverText = document.getElementById("gameOver");
     const winMessage = document.getElementById("winMessage");
     const skinSelector = document.getElementById("skinSelector");
+    const shopBtn = document.getElementById("shopBtn");
+    const shopModal = document.getElementById("shopModal");
+    const shopItemsDiv = document.getElementById("shopItems");
+    const closeShopBtn = document.getElementById("closeShopBtn");
 
     const mangonioImg = new Image();
     mangonioImg.src = skinSelector.value;
@@ -70,34 +161,27 @@
     const goal = 2500;
     const floorHeight = 60;
 
+    // Juego
     let mangonio, obstacles, speed, frame, score, gameOver, youWin;
     let speedStartTime = 0;
 
-    // Estado batería (para futuras mejoras)
-    let batteryInfo = {
-      charging: true,
-      level: 1,
-      savingMode: false
-    };
+    // Monedas en el juego
+    let coins = 0;
+    let coinObjects = [];
 
-    // Detectar estado batería si está disponible
-    if ('getBattery' in navigator) {
-      navigator.getBattery().then(battery => {
-        function updateBatteryInfo() {
-          batteryInfo.charging = battery.charging;
-          batteryInfo.level = battery.level; // 0 a 1
-          batteryInfo.savingMode = battery.level <= 0.2 && !battery.charging;
-          console.log(`Batería: ${(battery.level*100).toFixed(0)}%, Cargando: ${battery.charging}, Ahorro: ${batteryInfo.savingMode}`);
-        }
-        updateBatteryInfo();
+    // Carga imagen moneda
+    const coinImg = new Image();
+    coinImg.src = "coin.png"; // Debes agregar esta imagen para la moneda
 
-        battery.addEventListener('chargingchange', updateBatteryInfo);
-        battery.addEventListener('levelchange', updateBatteryInfo);
-      });
-    } else {
-      console.log("API de batería no soportada en este navegador");
-    }
+    // Datos tienda (skins + precio en monedas)
+    const storeSkins = [
+      {name: "Gil", img: "gil.png", price: 100, owned: false},
+      {name: "Pablito", img: "pablito.png", price: 150, owned: false},
+      {name: "Kuchau", img: "kuchau.png", price: 200, owned: false},
+      {name: "Polariza", img: "polariza.png", price: 250, owned: false}
+    ];
 
+    // Iniciar juego
     function resetGame() {
       mangonio = {
         x: 60,
@@ -111,28 +195,34 @@
       };
 
       obstacles = [];
+      coinObjects = [];
       speed = 6;
       frame = 0;
       score = 0;
+      coins = coins; // mantiene las monedas acumuladas entre juegos
       gameOver = false;
       youWin = false;
       speedStartTime = performance.now();
       gameOverText.style.display = "none";
       winMessage.style.display = "none";
       scoreDisplay.textContent = "Puntos: 0";
+      coinsDisplay.textContent = `Monedas: ${coins}`;
 
       requestAnimationFrame(update);
     }
 
+    // Dibujar suelo
     function drawFloor() {
       ctx.fillStyle = "#f5deb3";
       ctx.fillRect(0, canvas.height - floorHeight, canvas.width, floorHeight);
     }
 
+    // Dibujar jugador
     function drawMangonio() {
       ctx.drawImage(mangonioImg, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
     }
 
+    // Dibujar cactus
     function drawCactus(cactus) {
       ctx.fillStyle = "#2e8b57";
       ctx.fillRect(cactus.x, cactus.y, cactus.width, cactus.height);
@@ -140,6 +230,12 @@
       ctx.fillRect(cactus.x + cactus.width, cactus.y + 10, 8, 20);
     }
 
+    // Dibujar moneda
+    function drawCoin(c) {
+      ctx.drawImage(coinImg, c.x, c.y, c.size, c.size);
+    }
+
+    // Mostrar mensaje de victoria
     function drawWin() {
       ctx.font = "30px Arial";
       ctx.fillStyle = "purple";
@@ -152,12 +248,14 @@
       }
     }
 
+    // Función principal de actualización
     function update() {
       if (gameOver || youWin) return;
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawFloor();
 
+      // Actualizar jugador
       mangonio.vy += mangonio.gravity;
       mangonio.y += mangonio.vy;
 
@@ -169,6 +267,7 @@
 
       drawMangonio();
 
+      // Crear obstáculos
       if (frame % 60 === 0) {
         obstacles.push({
           x: canvas.width,
@@ -178,11 +277,22 @@
         });
       }
 
+      // Crear monedas aleatorias (1 moneda cada 150 frames aprox)
+      if (frame % 150 === 0) {
+        coinObjects.push({
+          x: canvas.width,
+          y: canvas.height - floorHeight - 30,
+          size: 30
+        });
+      }
+
+      // Mover y dibujar obstáculos
       for (let i = 0; i < obstacles.length; i++) {
         let c = obstacles[i];
         c.x -= speed;
         drawCactus(c);
 
+        // Colisión con jugador -> Game Over
         if (
           mangonio.x < c.x + c.width &&
           mangonio.x + mangonio.width > c.x &&
@@ -195,6 +305,28 @@
       }
 
       obstacles = obstacles.filter(c => c.x + c.width > 0);
+
+      // Mover y dibujar monedas
+      for (let i = 0; i < coinObjects.length; i++) {
+        let coin = coinObjects[i];
+        coin.x -= speed;
+        drawCoin(coin);
+
+        // Colisión con jugador -> recoger moneda
+        if (
+          mangonio.x < coin.x + coin.size &&
+          mangonio.x + mangonio.width > coin.x &&
+          mangonio.y + mangonio.height > coin.y &&
+          mangonio.y < coin.y + coin.size
+        ) {
+          coins++;
+          coinsDisplay.textContent = `Monedas: ${coins}`;
+          coinObjects.splice(i, 1);
+          i--;
+        }
+      }
+
+      coinObjects = coinObjects.filter(c => c.x + c.size > 0);
 
       frame++;
 
@@ -222,6 +354,7 @@
       requestAnimationFrame(update);
     }
 
+    // Manejo de teclas
     window.addEventListener("keydown", e => {
       if (e.code === "Space" && mangonio.grounded && !gameOver && !youWin) {
         mangonio.vy = mangonio.jumpPower;
@@ -232,9 +365,92 @@
       }
     });
 
+    // Cambio de skin desde selector (solo skins desbloqueadas o base)
     skinSelector.addEventListener("change", () => {
-      mangonioImg.src = skinSelector.value;
+      const selected = skinSelector.value;
+      if (isSkinOwned(selected) || isBaseSkin(selected)) {
+        mangonioImg.src = selected;
+      } else {
+        alert("No tienes esa skin. Cómprala en la tienda.");
+        // Volver al skin anterior
+        mangonioImg.src = skinSelector.options[skinSelector.selectedIndex].value;
+      }
     });
+
+    // Ayuda para saber si skin es base (del selector original)
+    function isBaseSkin(skin) {
+      return ["mangonio.png", "mangoniofino.png", "René.png"].includes(skin);
+    }
+
+    // Ver si skin está desbloqueada
+    function isSkinOwned(skin) {
+      return storeSkins.some(s => s.img === skin && s.owned);
+    }
+
+    // Abrir tienda
+    shopBtn.addEventListener("click", () => {
+      renderShop();
+      shopModal.style.display = "block";
+    });
+
+    // Cerrar tienda
+    closeShopBtn.addEventListener("click", () => {
+      shopModal.style.display = "none";
+    });
+
+    // Renderizar tienda
+    function renderShop() {
+      shopItemsDiv.innerHTML = "";
+      storeSkins.forEach(skin => {
+        const div = document.createElement("div");
+        div.className = "shopItem";
+
+        const img = document.createElement("img");
+        img.src = skin.img;
+
+        const spanName = document.createElement("span");
+        spanName.textContent = skin.name;
+
+        const spanPrice = document.createElement("span");
+        spanPrice.textContent = `${skin.price} monedas`;
+
+        const btn = document.createElement("button");
+        btn.className = "buyBtn";
+
+        if (skin.owned) {
+          btn.textContent = "Comprado";
+          btn.disabled = true;
+        } else if (coins < skin.price) {
+          btn.textContent = "No tienes monedas";
+          btn.disabled = true;
+        } else {
+          btn.textContent = "Comprar";
+          btn.disabled = false;
+          btn.addEventListener("click", () => {
+            if (coins >= skin.price) {
+              coins -= skin.price;
+              skin.owned = true;
+              coinsDisplay.textContent = `Monedas: ${coins}`;
+              renderShop();
+              alert(`Compraste la skin ${skin.name}!`);
+              // Añadir skin al selector si no existe
+              if (![...skinSelector.options].some(o => o.value === skin.img)) {
+                const option = document.createElement("option");
+                option.value = skin.img;
+                option.text = skin.name;
+                skinSelector.appendChild(option);
+              }
+            }
+          });
+        }
+
+        div.appendChild(img);
+        div.appendChild(spanName);
+        div.appendChild(spanPrice);
+        div.appendChild(btn);
+        shopItemsDiv.appendChild(div);
+      });
+    }
 
     mangonioImg.onload = () => {
       resetGame();
