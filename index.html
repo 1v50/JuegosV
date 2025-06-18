@@ -53,6 +53,7 @@
     <option value="pablito.png">Pablito</option>
     <option value="kuchau.png">Kuchau</option>
     <option value="polariza.png">Polariza</option>
+    <option value="GilShiny.png">Gil Shiny</option>
   </select>
   <canvas id="game" width="800" height="300"></canvas>
 
@@ -65,6 +66,29 @@
     const skinSelector = document.getElementById("skinSelector");
 
     const mangonioImg = new Image();
+    let allowedSkin = "mangonio.png";
+    let gilShinyUnlocked = false;
+
+    skinSelector.addEventListener("change", () => {
+      const selectedSkin = skinSelector.value;
+
+      if (selectedSkin === "GilShiny.png" && !gilShinyUnlocked) {
+        const inputCode = prompt("Introduce el código para desbloquear esta skin:");
+        if (inputCode === "GilGuapo") {
+          gilShinyUnlocked = true;
+          mangonioImg.src = selectedSkin;
+        } else {
+          alert("Código incorrecto.");
+          skinSelector.value = allowedSkin;
+          return;
+        }
+      } else {
+        mangonioImg.src = selectedSkin;
+      }
+
+      allowedSkin = selectedSkin;
+    });
+
     mangonioImg.src = skinSelector.value;
 
     const goal = 2500;
@@ -72,31 +96,6 @@
 
     let mangonio, obstacles, speed, frame, score, gameOver, youWin;
     let speedStartTime = 0;
-
-    // Estado batería (para futuras mejoras)
-    let batteryInfo = {
-      charging: true,
-      level: 1,
-      savingMode: false
-    };
-
-    // Detectar estado batería si está disponible
-    if ('getBattery' in navigator) {
-      navigator.getBattery().then(battery => {
-        function updateBatteryInfo() {
-          batteryInfo.charging = battery.charging;
-          batteryInfo.level = battery.level; // 0 a 1
-          batteryInfo.savingMode = battery.level <= 0.2 && !battery.charging;
-          console.log(`Batería: ${(battery.level*100).toFixed(0)}%, Cargando: ${battery.charging}, Ahorro: ${batteryInfo.savingMode}`);
-        }
-        updateBatteryInfo();
-
-        battery.addEventListener('chargingchange', updateBatteryInfo);
-        battery.addEventListener('levelchange', updateBatteryInfo);
-      });
-    } else {
-      console.log("API de batería no soportada en este navegador");
-    }
 
     function resetGame() {
       mangonio = {
@@ -198,7 +197,6 @@
 
       frame++;
 
-      // Aumenta velocidad después de 10 segundos
       const elapsedSeconds = (performance.now() - speedStartTime) / 1000;
       if (elapsedSeconds > 10 && speed < 8) {
         speed = 8;
@@ -230,10 +228,6 @@
       if (e.code === "KeyR" && (gameOver || youWin)) {
         resetGame();
       }
-    });
-
-    skinSelector.addEventListener("change", () => {
-      mangonioImg.src = skinSelector.value;
     });
 
     mangonioImg.onload = () => {
