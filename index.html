@@ -127,18 +127,21 @@
 
     let mangonio, obstacles, speed, frame, score, gameOver, youWin;
     let speedStartTime = 0;
+    let isCrouching = false;
 
     function resetGame() {
       mangonio = {
         x: 60,
-        y: canvas.height - 60 - 60,
+        y: canvas.height - 60 - 70,
         width: 50,
         height: 70,
         vy: 0,
         jumpPower: -13,
         gravity: 0.9,
         grounded: true,
-        hitboxReduction: 0.9
+        hitboxReduction: 0.9,
+        normalHeight: 70,
+        crouchHeight: 35
       };
 
       obstacles = [];
@@ -188,6 +191,15 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawFloor();
 
+      // Agacharse
+      if (isCrouching && mangonio.grounded) {
+        mangonio.height = mangonio.crouchHeight;
+        mangonio.y = canvas.height - 60 - mangonio.height;
+      } else if (mangonio.height !== mangonio.normalHeight) {
+        mangonio.height = mangonio.normalHeight;
+        mangonio.y = canvas.height - 60 - mangonio.height;
+      }
+
       mangonio.vy += mangonio.gravity;
       mangonio.y += mangonio.vy;
       if (mangonio.y >= canvas.height - 60 - mangonio.height) {
@@ -231,7 +243,7 @@
         if (score % 100 === 0 && speed < 16) speed += 0.5;
       }
 
-      if (score >= 2500) {
+      if (score >= 5000) {
         youWin = true;
         winMessage.style.display = "block";
         drawWin();
@@ -246,8 +258,17 @@
         mangonio.vy = mangonio.jumpPower;
         mangonio.grounded = false;
       }
+      if (e.code === "ArrowDown") {
+        isCrouching = true;
+      }
       if (e.code === "KeyR" && (gameOver || youWin)) {
         resetGame();
+      }
+    });
+
+    window.addEventListener("keyup", e => {
+      if (e.code === "ArrowDown") {
+        isCrouching = false;
       }
     });
 
