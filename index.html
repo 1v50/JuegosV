@@ -12,7 +12,6 @@
     canvas {
       display: block;
       margin: auto;
-      background: #b2ebf2; /* Esto cambiará dinámicamente en el JS */
       border: 5px solid #333;
     }
     #gameOver, #winMessage {
@@ -30,7 +29,6 @@
       left: 20px;
       font-size: 20px;
       font-weight: bold;
-      color: black; /* Cambiaremos color en la noche */
     }
     #skinSelector {
       position: absolute;
@@ -39,7 +37,6 @@
       transform: translateX(-50%);
       font-size: 16px;
       padding: 8px;
-      z-index: 10;
     }
   </style>
 </head>
@@ -67,26 +64,31 @@
     const skinSelector = document.getElementById("skinSelector");
 
     const mangonioImg = new Image();
-    mangonioImg.src = skinSelector.value;
-
-    // Imágenes del sol y la luna
     const solImg = new Image();
-    solImg.src = "sol.png";
-
     const lunaImg = new Image();
+    mangonioImg.src = skinSelector.value;
+    solImg.src = "sol.png";
     lunaImg.src = "luna.png";
 
     const goal = 2500;
     const floorHeight = 60;
+    let mangonio, obstacles, speed, frame, score, gameOver, youWin, isDay = true, lastToggleTime = 0;
 
-    let mangonio, obstacles, speed, frame, score, gameOver, youWin;
-    let speedStartTime = 0;
+    // Cargar imágenes y asegurarse que todo esté listo
+    let loadedImages = 0;
+    function checkAllLoaded() {
+      loadedImages++;
+      if (loadedImages >= 3) {
+        resetGame();
+      }
+    }
+    mangonioImg.onload = checkAllLoaded;
+    solImg.onload = checkAllLoaded;
+    lunaImg.onload = checkAllLoaded;
 
-    // Para controlar ciclo día/noche
-    let isDay = true;
-    let dayNightTimer = 0;
-    const dayDuration = 40000; // 40 segundos día
-    const nightDuration = 40000; // 40 segundos noche
+    skinSelector.addEventListener("change", () => {
+      mangonioImg.src = skinSelector.value;
+    });
 
     function resetGame() {
       mangonio = {
@@ -105,22 +107,15 @@
       score = 0;
       gameOver = false;
       youWin = false;
-      speedStartTime = performance.now();
-      dayNightTimer = performance.now();
-      isDay = true;
-
+      lastToggleTime = performance.now();
       gameOverText.style.display = "none";
       winMessage.style.display = "none";
       scoreDisplay.textContent = "Puntos: 0";
-      scoreDisplay.style.color = "black";
-
-      mangonioImg.src = skinSelector.value;
-
       requestAnimationFrame(update);
     }
 
     function drawFloor() {
-      ctx.fillStyle = isDay ? "#f5deb3" : "#403d3d"; // suelo claro o oscuro
+      ctx.fillStyle = "#f5deb3";
       ctx.fillRect(0, canvas.height - floorHeight, canvas.width, floorHeight);
     }
 
@@ -128,21 +123,11 @@
       ctx.drawImage(mangonioImg, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
     }
 
-    function drawCactus(cactus) {
-      ctx.fillStyle = isDay ? "#2e8b57" : "#9bc6b8"; // cambia el color si es noche
-      ctx.fillRect(cactus.x, cactus.y, cactus.width, cactus.height);
-      ctx.fillRect(cactus.x - 10, cactus.y + 10, 8, 20);
-      ctx.fillRect(cactus.x + cactus.width, cactus.y + 10, 8, 20);
-    }
-
-    function drawSunOrMoon() {
-      const size = 50;
-      const padding = 20;
-      if (isDay) {
-        ctx.drawImage(solImg, canvas.width - size - padding, padding, size, size);
-      } else {
-        ctx.drawImage(lunaImg, canvas.width - size - padding, padding, size, size);
-      }
+    function drawCactus(c) {
+      ctx.fillStyle = "#2e8b57";
+      ctx.fillRect(c.x, c.y, c.width, c.height);
+      ctx.fillRect(c.x - 10, c.y + 10, 8, 20);
+      ctx.fillRect(c.x + c.width, c.y + 10, 8, 20);
     }
 
     function drawWin() {
@@ -157,28 +142,26 @@
       }
     }
 
+    function drawSky() {
+      ctx.fillStyle = isDay ? "#b2ebf2" : "#001d3d";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function drawSunOrMoon() {
+      const img = isDay ? solImg : lunaImg;
+      ctx.drawImage(img, canvas.width - 80, 20, 50, 50);
+    }
+
     function update() {
       if (gameOver || youWin) return;
 
-      // Controlar ciclo día/noche
       const now = performance.now();
-      const elapsed = now - dayNightTimer;
-
-      if (isDay && elapsed >= dayDuration) {
-        isDay = false;
-        dayNightTimer = now;
-        scoreDisplay.style.color = "white";
-      } else if (!isDay && elapsed >= nightDuration) {
-        isDay = true;
-        dayNightTimer = now;
-        scoreDisplay.style.color = "black";
+      if (now - lastToggleTime > 40000) { // 40 segundos
+        isDay = !isDay;
+        lastToggleTime = now;
       }
 
-      // Fondo dinámico
-      ctx.fillStyle = isDay ? "#b2ebf2" : "#0a1a2a";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      drawFloor();
+      drawSky();
 
       mangonio.vy += mangonio.gravity;
       mangonio.y += mangonio.vy;
@@ -189,6 +172,8 @@
         mangonio.grounded = true;
       }
 
+      drawFloor();
+      drawSunOrMoon();
       drawMangonio();
 
       if (frame % 60 === 0) {
@@ -204,7 +189,6 @@
         let c = obstacles[i];
         c.x -= speed;
         drawCactus(c);
-
         if (
           mangonio.x < c.x + c.width &&
           mangonio.x + mangonio.width > c.x &&
@@ -217,14 +201,7 @@
       }
 
       obstacles = obstacles.filter(c => c.x + c.width > 0);
-
       frame++;
-
-      // Aumenta velocidad después de 10 segundos
-      const elapsedSeconds = (performance.now() - speedStartTime) / 1000;
-      if (elapsedSeconds > 10 && speed < 8) {
-        speed = 8;
-      }
 
       if (frame % 5 === 0) {
         score++;
@@ -241,8 +218,6 @@
         return;
       }
 
-      drawSunOrMoon();
-
       requestAnimationFrame(update);
     }
 
@@ -255,10 +230,6 @@
         resetGame();
       }
     });
-
-    skinSelector.addEventListener("change", () => {
-      mangonioImg.src = skinSelector.value;
-    });
-
-    mangonioImg.onload = () => {
-     
+  </script>
+</body>
+</html>
