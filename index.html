@@ -45,11 +45,16 @@
   <div id="gameOver">Haz muerto, Mangonio está muy triste 😭<br>Presiona "R" para reiniciar</div>
   <div id="winMessage">Ganaste, Mangonio está orgulloso 🙉<br>Puntaje máximo alcanzado</div>
   <div id="score">Puntos: 0</div>
+
+  <!-- Selector con nuevas skins agregadas -->
   <select id="skinSelector">
     <option value="mangonio.png">Mangonio</option>
     <option value="mangoniofino.png">Mangonio Fino</option>
     <option value="René.png">René</option>
+    <option value="gil.png">Gil</option>
+    <option value="pablito.png">Pablito</option>
   </select>
+
   <canvas id="game" width="800" height="300"></canvas>
 
   <script>
@@ -76,17 +81,15 @@
       savingMode: false
     };
 
-    // Detectar estado batería si está disponible
     if ('getBattery' in navigator) {
       navigator.getBattery().then(battery => {
         function updateBatteryInfo() {
           batteryInfo.charging = battery.charging;
-          batteryInfo.level = battery.level; // 0 a 1
+          batteryInfo.level = battery.level;
           batteryInfo.savingMode = battery.level <= 0.2 && !battery.charging;
           console.log(`Batería: ${(battery.level*100).toFixed(0)}%, Cargando: ${battery.charging}, Ahorro: ${batteryInfo.savingMode}`);
         }
         updateBatteryInfo();
-
         battery.addEventListener('chargingchange', updateBatteryInfo);
         battery.addEventListener('levelchange', updateBatteryInfo);
       });
@@ -192,7 +195,6 @@
 
       frame++;
 
-      // Aumenta velocidad después de 10 segundos
       const elapsedSeconds = (performance.now() - speedStartTime) / 1000;
       if (elapsedSeconds > 10 && speed < 8) {
         speed = 8;
