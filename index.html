@@ -8,6 +8,7 @@
       margin: 0;
       background: #def;
       overflow: hidden;
+      font-family: sans-serif;
     }
     canvas {
       display: block;
@@ -31,59 +32,70 @@
       font-size: 20px;
       font-weight: bold;
     }
-    #controlsInfo {
-      position: absolute;
-      bottom: 10px;
-      right: 10px;
-      font-size: 14px;
-      color: black;
-      background: rgba(255,255,255,0.5);
-      padding: 5px 10px;
-      border-radius: 5px;
-    }
-    #skinSelectorUI {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      text-align: center;
-      display: none;
-      background: white;
-      padding: 10px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px #999;
-    }
-    .skinCard {
-      margin: 10px;
-      display: inline-block;
-      text-align: center;
-    }
-    .skinCard img {
-      width: 50px;
-      height: 70px;
-      display: block;
-      margin-bottom: 5px;
-    }
     #skinButton {
       position: absolute;
-      bottom: 100px;
-      left: 50%;
-      transform: translateX(-50%);
+      bottom: 20px;
+      left: 20px;
       font-size: 16px;
-      padding: 8px 12px;
+      padding: 10px 20px;
+      background-color: #333;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    #skinMenu {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #fff;
+      border: 2px solid #000;
+      padding: 20px;
+      z-index: 10;
+      max-width: 600px;
+      width: 90%;
+      box-shadow: 0 0 15px rgba(0,0,0,0.5);
+    }
+    .skin-option {
+      display: inline-block;
+      width: 120px;
+      margin: 10px;
+      text-align: center;
+    }
+    .skin-option img {
+      width: 100px;
+      height: 100px;
+      object-fit: cover;
+      border: 2px solid #000;
+      border-radius: 10px;
+    }
+    .skin-option button {
+      margin-top: 5px;
+      padding: 5px 10px;
+    }
+    #closeMenu {
+      position: absolute;
+      top: 5px;
+      right: 10px;
+      font-size: 18px;
+      background: red;
+      color: white;
+      border: none;
+      padding: 5px 10px;
       cursor: pointer;
     }
   </style>
 </head>
 <body>
   <div id="gameOver">Haz muerto, Mangonio está muy triste 😭<br>Presiona "R" para reiniciar</div>
-  <div id="winMessage">Ganaste, Mangonio está orgulloso 🙉<br>Puntaje máximo alcanzado</div>
+  <div id="winMessage">Ganaste, Mangonio está orgulloso 🚉<br>Puntaje máximo alcanzado</div>
   <div id="score">Puntos: 0</div>
-  <div id="controlsInfo">Controles: Espacio = Saltar | B = Agacharse | R = Reiniciar</div>
-
   <button id="skinButton">Skins</button>
-  <div id="skinSelectorUI"></div>
-
+  <div id="skinMenu">
+    <button id="closeMenu">X</button>
+  </div>
   <canvas id="game" width="800" height="300"></canvas>
 
   <script>
@@ -92,55 +104,50 @@
     const scoreDisplay = document.getElementById("score");
     const gameOverText = document.getElementById("gameOver");
     const winMessage = document.getElementById("winMessage");
-    const skinSelectorUI = document.getElementById("skinSelectorUI");
+
+    const skinMenu = document.getElementById("skinMenu");
     const skinButton = document.getElementById("skinButton");
+    const closeMenu = document.getElementById("closeMenu");
 
     const skins = [
-      { name: "Mangonio", src: "mangonio.png" },
-      { name: "Mangonio Fino", src: "mangoniofino.png" },
-      { name: "René", src: "René.png" },
-      { name: "Gil", src: "gil.png" },
-      { name: "Pablito", src: "pablito.png" },
-      { name: "Kuchau", src: "kuchau.png" },
-      { name: "Polariza", src: "polariza.png" },
-      { name: "Gil Shiny", src: "GilShiny.png", code: "GilGuapo" },
-      { name: "CapiCastor", src: "capicastor.png" },
-      { name: "Golden Mangonio", src: "GoldenMangonio.png" },
+      { name: "Mangonio", file: "mangonio.png" },
+      { name: "Mangonio Fino", file: "mangoniofino.png" },
+      { name: "René", file: "René.png" },
+      { name: "Gil", file: "gil.png" },
+      { name: "Pablito", file: "pablito.png" },
+      { name: "Kuchau", file: "kuchau.png" },
+      { name: "Polariza", file: "polariza.png" },
+      { name: "Gil Shiny", file: "GilShiny.png", requiresCode: true },
+      { name: "CapiCastor", file: "capicastor.png" },
+      { name: "Golden Mangonio", file: "GoldenMangonio.png" }
     ];
 
-    let selectedSkin = skins[0].src;
-    const mangonioImg = new Image();
-    mangonioImg.src = selectedSkin;
+    let mangonioImg = new Image();
+    mangonioImg.src = skins[0].file;
 
-    const manzanaImg = new Image();
-    manzanaImg.src = "manzana.png";
-
-    const goal = 2500;
-    const floorHeight = 60;
-
-    let mangonio, obstacles, manzanas, speed, frame, score, gameOver, youWin, crouching;
+    let mangonio, obstacles, speed, frame, score, gameOver, youWin;
+    let speedStartTime = 0;
 
     function resetGame() {
       mangonio = {
         x: 60,
-        y: canvas.height - floorHeight - 60,
+        y: canvas.height - 60 - 60,
         width: 50,
         height: 70,
         vy: 0,
         jumpPower: -13,
         gravity: 0.9,
-        grounded: true
+        grounded: true,
+        hitboxReduction: 0.9
       };
 
       obstacles = [];
-      manzanas = [];
       speed = 6;
       frame = 0;
       score = 0;
       gameOver = false;
       youWin = false;
-      crouching = false;
-
+      speedStartTime = performance.now();
       gameOverText.style.display = "none";
       winMessage.style.display = "none";
       scoreDisplay.textContent = "Puntos: 0";
@@ -150,33 +157,41 @@
 
     function drawFloor() {
       ctx.fillStyle = "#f5deb3";
-      ctx.fillRect(0, canvas.height - floorHeight, canvas.width, floorHeight);
+      ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
     }
 
     function drawMangonio() {
       ctx.drawImage(mangonioImg, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
     }
 
-    function drawObstacle(c) {
+    function drawCactus(cactus) {
       ctx.fillStyle = "#2e8b57";
-      ctx.fillRect(c.x, c.y, c.width, c.height);
+      ctx.fillRect(cactus.x, cactus.y, cactus.width, cactus.height);
+      ctx.fillRect(cactus.x - 10, cactus.y + 10, 8, 20);
+      ctx.fillRect(cactus.x + cactus.width, cactus.y + 10, 8, 20);
     }
 
-    function drawManzana(m) {
-      ctx.drawImage(manzanaImg, m.x, m.y, m.width, m.height);
+    function drawWin() {
+      ctx.font = "30px Arial";
+      ctx.fillStyle = "purple";
+      ctx.fillText("🎂", canvas.width / 2 - 15, canvas.height / 2);
+      for (let i = 0; i < 100; i++) {
+        ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 50%)`;
+        ctx.beginPath();
+        ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     function update() {
       if (gameOver || youWin) return;
-
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawFloor();
 
       mangonio.vy += mangonio.gravity;
       mangonio.y += mangonio.vy;
-
-      if (mangonio.y >= canvas.height - floorHeight - mangonio.height) {
-        mangonio.y = canvas.height - floorHeight - mangonio.height;
+      if (mangonio.y >= canvas.height - 60 - mangonio.height) {
+        mangonio.y = canvas.height - 60 - mangonio.height;
         mangonio.vy = 0;
         mangonio.grounded = true;
       }
@@ -184,85 +199,42 @@
       drawMangonio();
 
       if (frame % 60 === 0) {
-        if (Math.random() < 0.6) {
-          obstacles.push({
-            x: canvas.width,
-            y: canvas.height - floorHeight - 50,
-            width: 20,
-            height: 50
-          });
-        } else {
-          manzanas.push({
-            x: canvas.width,
-            y: Math.random() < 0.5 ? canvas.height - floorHeight - 120 : canvas.height - floorHeight - 70,
-            width: 40,
-            height: 40
-          });
-        }
+        obstacles.push({ x: canvas.width, y: canvas.height - 110, width: 20, height: 50 });
       }
 
       for (let i = 0; i < obstacles.length; i++) {
         let c = obstacles[i];
         c.x -= speed;
-        drawObstacle(c);
+        drawCactus(c);
 
-        const hitbox = {
-          x: mangonio.x + 5,
-          y: mangonio.y + 5,
-          width: mangonio.width * 0.9,
-          height: mangonio.height * 0.9,
-        };
+        const shrink = mangonio.hitboxReduction;
+        const mx = mangonio.x + mangonio.width * (1 - shrink) / 2;
+        const my = mangonio.y + mangonio.height * (1 - shrink) / 2;
+        const mw = mangonio.width * shrink;
+        const mh = mangonio.height * shrink;
 
-        if (
-          hitbox.x < c.x + c.width &&
-          hitbox.x + hitbox.width > c.x &&
-          hitbox.y + hitbox.height > c.y
-        ) {
+        if (mx < c.x + c.width && mx + mw > c.x && my + mh > c.y) {
           gameOver = true;
           gameOverText.style.display = "block";
           return;
         }
       }
-
-      for (let i = 0; i < manzanas.length; i++) {
-        let m = manzanas[i];
-        m.x -= speed;
-        drawManzana(m);
-
-        const hitbox = {
-          x: mangonio.x + 5,
-          y: mangonio.y + 5,
-          width: mangonio.width * 0.9,
-          height: mangonio.height * 0.9,
-        };
-
-        if (
-          hitbox.x < m.x + m.width &&
-          hitbox.x + hitbox.width > m.x &&
-          hitbox.y + hitbox.height > m.y
-        ) {
-          gameOver = true;
-          gameOverText.style.display = "block";
-          return;
-        }
-      }
-
       obstacles = obstacles.filter(c => c.x + c.width > 0);
-      manzanas = manzanas.filter(m => m.x + m.width > 0);
 
       frame++;
+      const elapsedSeconds = (performance.now() - speedStartTime) / 1000;
+      if (elapsedSeconds > 10 && speed < 8) speed = 8;
 
       if (frame % 5 === 0) {
         score++;
         scoreDisplay.textContent = `Puntos: ${score}`;
-        if (score % 100 === 0 && speed < 16) {
-          speed += 0.5;
-        }
+        if (score % 100 === 0 && speed < 16) speed += 0.5;
       }
 
-      if (score >= goal) {
+      if (score >= 2500) {
         youWin = true;
         winMessage.style.display = "block";
+        drawWin();
         return;
       }
 
@@ -277,52 +249,34 @@
       if (e.code === "KeyR" && (gameOver || youWin)) {
         resetGame();
       }
-      if (e.code === "KeyB") {
-        if (!crouching && mangonio.grounded) {
-          crouching = true;
-          mangonio.height = 40;
-          mangonio.y += 30;
-        }
-      }
     });
 
-    window.addEventListener("keyup", e => {
-      if (e.code === "KeyB") {
-        if (crouching) {
-          crouching = false;
-          mangonio.y -= 30;
-          mangonio.height = 70;
-        }
-      }
-    });
-
-    skinButton.addEventListener("click", () => {
-      skinSelectorUI.innerHTML = "";
+    function showSkinMenu() {
+      skinMenu.innerHTML = '<button id="closeMenu">X</button>';
       skins.forEach(skin => {
         const div = document.createElement("div");
-        div.className = "skinCard";
+        div.className = "skin-option";
         div.innerHTML = `
-          <img src="${skin.src}" />
+          <img src="${skin.file}" alt="${skin.name}" />
           <div>${skin.name}</div>
           <button>Seleccionar</button>
         `;
-        const btn = div.querySelector("button");
-        btn.onclick = () => {
-          if (skin.code) {
-            const pass = prompt("Ingresa el código secreto:");
-            if (pass !== skin.code) return alert("Código incorrecto.");
+        div.querySelector("button").onclick = () => {
+          if (skin.requiresCode) {
+            const code = prompt("Introduce el código para desbloquear esta skin:");
+            if (code !== "GilGuapo") return alert("Código incorrecto");
           }
-          selectedSkin = skin.src;
-          mangonioImg.src = selectedSkin;
+          mangonioImg.src = skin.file;
+          skinMenu.style.display = "none";
         };
-        skinSelectorUI.appendChild(div);
+        skinMenu.appendChild(div);
       });
-      skinSelectorUI.style.display = skinSelectorUI.style.display === "none" ? "block" : "none";
-    });
+      document.getElementById("closeMenu").onclick = () => skinMenu.style.display = "none";
+      skinMenu.style.display = "block";
+    }
 
-    mangonioImg.onload = () => {
-      resetGame();
-    };
+    skinButton.onclick = showSkinMenu;
+    mangonioImg.onload = resetGame;
   </script>
 </body>
 </html>
