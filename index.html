@@ -12,7 +12,7 @@
     canvas {
       display: block;
       margin: auto;
-      background: #b2ebf2;
+      background: #b2ebf2; /* Esto cambiará dinámicamente en el JS */
       border: 5px solid #333;
     }
     #gameOver, #winMessage {
@@ -30,6 +30,7 @@
       left: 20px;
       font-size: 20px;
       font-weight: bold;
+      color: black; /* Cambiaremos color en la noche */
     }
     #skinSelector {
       position: absolute;
@@ -38,6 +39,7 @@
       transform: translateX(-50%);
       font-size: 16px;
       padding: 8px;
+      z-index: 10;
     }
   </style>
 </head>
@@ -67,36 +69,24 @@
     const mangonioImg = new Image();
     mangonioImg.src = skinSelector.value;
 
+    // Imágenes del sol y la luna
+    const solImg = new Image();
+    solImg.src = "sol.png";
+
+    const lunaImg = new Image();
+    lunaImg.src = "luna.png";
+
     const goal = 2500;
     const floorHeight = 60;
 
     let mangonio, obstacles, speed, frame, score, gameOver, youWin;
     let speedStartTime = 0;
 
-    // Estado batería (para futuras mejoras)
-    let batteryInfo = {
-      charging: true,
-      level: 1,
-      savingMode: false
-    };
-
-    // Detectar estado batería si está disponible
-    if ('getBattery' in navigator) {
-      navigator.getBattery().then(battery => {
-        function updateBatteryInfo() {
-          batteryInfo.charging = battery.charging;
-          batteryInfo.level = battery.level; // 0 a 1
-          batteryInfo.savingMode = battery.level <= 0.2 && !battery.charging;
-          console.log(`Batería: ${(battery.level*100).toFixed(0)}%, Cargando: ${battery.charging}, Ahorro: ${batteryInfo.savingMode}`);
-        }
-        updateBatteryInfo();
-
-        battery.addEventListener('chargingchange', updateBatteryInfo);
-        battery.addEventListener('levelchange', updateBatteryInfo);
-      });
-    } else {
-      console.log("API de batería no soportada en este navegador");
-    }
+    // Para controlar ciclo día/noche
+    let isDay = true;
+    let dayNightTimer = 0;
+    const dayDuration = 40000; // 40 segundos día
+    const nightDuration = 40000; // 40 segundos noche
 
     function resetGame() {
       mangonio = {
@@ -109,7 +99,6 @@
         gravity: 0.9,
         grounded: true
       };
-
       obstacles = [];
       speed = 6;
       frame = 0;
@@ -117,15 +106,21 @@
       gameOver = false;
       youWin = false;
       speedStartTime = performance.now();
+      dayNightTimer = performance.now();
+      isDay = true;
+
       gameOverText.style.display = "none";
       winMessage.style.display = "none";
       scoreDisplay.textContent = "Puntos: 0";
+      scoreDisplay.style.color = "black";
+
+      mangonioImg.src = skinSelector.value;
 
       requestAnimationFrame(update);
     }
 
     function drawFloor() {
-      ctx.fillStyle = "#f5deb3";
+      ctx.fillStyle = isDay ? "#f5deb3" : "#403d3d"; // suelo claro o oscuro
       ctx.fillRect(0, canvas.height - floorHeight, canvas.width, floorHeight);
     }
 
@@ -134,10 +129,20 @@
     }
 
     function drawCactus(cactus) {
-      ctx.fillStyle = "#2e8b57";
+      ctx.fillStyle = isDay ? "#2e8b57" : "#9bc6b8"; // cambia el color si es noche
       ctx.fillRect(cactus.x, cactus.y, cactus.width, cactus.height);
       ctx.fillRect(cactus.x - 10, cactus.y + 10, 8, 20);
       ctx.fillRect(cactus.x + cactus.width, cactus.y + 10, 8, 20);
+    }
+
+    function drawSunOrMoon() {
+      const size = 50;
+      const padding = 20;
+      if (isDay) {
+        ctx.drawImage(solImg, canvas.width - size - padding, padding, size, size);
+      } else {
+        ctx.drawImage(lunaImg, canvas.width - size - padding, padding, size, size);
+      }
     }
 
     function drawWin() {
@@ -155,7 +160,24 @@
     function update() {
       if (gameOver || youWin) return;
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Controlar ciclo día/noche
+      const now = performance.now();
+      const elapsed = now - dayNightTimer;
+
+      if (isDay && elapsed >= dayDuration) {
+        isDay = false;
+        dayNightTimer = now;
+        scoreDisplay.style.color = "white";
+      } else if (!isDay && elapsed >= nightDuration) {
+        isDay = true;
+        dayNightTimer = now;
+        scoreDisplay.style.color = "black";
+      }
+
+      // Fondo dinámico
+      ctx.fillStyle = isDay ? "#b2ebf2" : "#0a1a2a";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
       drawFloor();
 
       mangonio.vy += mangonio.gravity;
@@ -219,6 +241,8 @@
         return;
       }
 
+      drawSunOrMoon();
+
       requestAnimationFrame(update);
     }
 
@@ -237,8 +261,4 @@
     });
 
     mangonioImg.onload = () => {
-      resetGame();
-    };
-  </script>
-</body>
-</html>
+     
