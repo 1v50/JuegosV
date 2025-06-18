@@ -43,34 +43,25 @@
     }
     #skinSelectorUI {
       position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      text-align: center;
-      display: none;
-      background: white;
+      top: 0;
+      right: 0;
       padding: 10px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px #999;
+      background: white;
+      border-left: 2px solid #ccc;
+      border-bottom: 2px solid #ccc;
+      display: none;
     }
-    .skinCard {
-      margin: 10px;
-      display: inline-block;
-      text-align: center;
-    }
-    .skinCard img {
-      width: 50px;
-      height: 70px;
-      display: block;
-      margin-bottom: 5px;
+    #skinSelectorUI img {
+      width: 40px;
+      height: 50px;
     }
     #skinButton {
       position: absolute;
-      bottom: 100px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 16px;
-      padding: 8px 12px;
+      top: 10px;
+      right: 10px;
+      padding: 5px;
+      background: #fff;
+      border: 1px solid #ccc;
       cursor: pointer;
     }
   </style>
@@ -299,15 +290,10 @@
     skinButton.addEventListener("click", () => {
       skinSelectorUI.innerHTML = "";
       skins.forEach(skin => {
-        const div = document.createElement("div");
-        div.className = "skinCard";
-        div.innerHTML = `
-          <img src="${skin.src}" />
-          <div>${skin.name}</div>
-          <button>Seleccionar</button>
-        `;
-        const btn = div.querySelector("button");
-        btn.onclick = () => {
+        const img = document.createElement("img");
+        img.src = skin.src;
+        img.title = skin.name;
+        img.onclick = () => {
           if (skin.code) {
             const pass = prompt("Ingresa el código secreto:");
             if (pass !== skin.code) return alert("Código incorrecto.");
@@ -315,7 +301,7 @@
           selectedSkin = skin.src;
           mangonioImg.src = selectedSkin;
         };
-        skinSelectorUI.appendChild(div);
+        skinSelectorUI.appendChild(img);
       });
       skinSelectorUI.style.display = skinSelectorUI.style.display === "none" ? "block" : "none";
     });
