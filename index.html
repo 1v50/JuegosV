@@ -1,164 +1,40 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Esquiva Mangonio Mejorado</title>
-  <style>
-    body {
-      margin: 0;
-      background: #def;
-      overflow: hidden;
-      font-family: sans-serif;
-    }
-    canvas {
-      display: block;
-      margin: auto;
-      background: #b2ebf2;
-      border: 5px solid #333;
-    }
-    #gameOver, #winMessage {
-      position: absolute;
-      top: 30%;
-      width: 100%;
-      text-align: center;
-      font-size: 2em;
-      color: red;
-      display: none;
-    }
-    #score {
-      position: absolute;
-      top: 10px;
-      left: 20px;
-      font-size: 20px;
-      font-weight: bold;
-    }
-    #skinButton, #hardModeButton, #levelSelectButton {
-      position: absolute;
-      bottom: 20px;
-      font-size: 16px;
-      padding: 10px 20px;
-      background-color: #333;
-      color: white;
-      border: none;
-      cursor: pointer;
-      border-radius: 5px;
-    }
-    #skinButton { left: 20px; }
-    #hardModeButton { left: 140px; }
-    #levelSelectButton { left: 280px; }
-    #skinMenu {
-      display: none;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: #fff;
-      border: 2px solid #000;
-      padding: 20px;
-      z-index: 10;
-      max-width: 600px;
-      width: 90%;
-      box-shadow: 0 0 15px rgba(0,0,0,0.5);
-    }
-    .skin-option {
-      display: inline-block;
-      width: 120px;
-      margin: 10px;
-      text-align: center;
-    }
-    .skin-option img {
-      width: 100px;
-      height: 100px;
-      object-fit: cover;
-      border: 2px solid #000;
-      border-radius: 10px;
-    }
-    .skin-option button {
-      margin-top: 5px;
-      padding: 5px 10px;
-    }
-    #closeMenu {
-      position: absolute;
-      top: 5px;
-      right: 10px;
-      font-size: 18px;
-      background: red;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      cursor: pointer;
-    }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mangonio Runner</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="gameOver">Haz muerto, Mangonio está muy triste 😭<br>Presiona "R" para reiniciar</div>
-  <div id="winMessage">Ganaste, Mangonio está orgulloso 🚉<br>Puntaje máximo alcanzado</div>
-  <div id="score">Puntos: 0</div>
-  <button id="skinButton">Skins / Tienda</button>
-  <button id="hardModeButton">Modo Difícil</button>
-  <button id="levelSelectButton">Seleccionar Nivel</button>
-  <div id="skinMenu">
-    <button id="closeMenu">X</button>
+  <h1>Mangonio Runner</h1>
+
+  <canvas id="game" width="800" height="200"></canvas>
+
+  <div id="ui-container">
+    <div id="left-controls">
+      <button id="skinButton">Skins</button>
+    </div>
+    <div id="center-controls">
+      <button id="shopButton">Tienda</button>
+      <button id="hardModeButton">Modo Difícil</button>
+    </div>
+    <div id="right-controls">
+      <button id="levelButton">Seleccionar Nivel</button>
+    </div>
   </div>
-  <canvas id="game" width="800" height="300"></canvas>
 
-  <script>
-    // Ejemplo parcial: skins con tienda
-    const skins = [
-      { name: "Mangonio", file: "mangonio.png", price: 0 },
-      { name: "willyngonio", file: "willyngonio.png", price: 100 },
-      { name: "mangonio.exe", file: "mangonio.exe.png", price: 200 },
-      { name: "baby mangonio", file: "babymangonio.png", price: 300 },
-      { name: "IronGonio", file: "IronGonio.png", secret: true }
-    ];
+  <div id="score">Puntos: 0</div>
+  <div id="gameOver" class="hidden">¡Game Over! Presiona R para reiniciar</div>
+  <div id="winMessage" class="hidden"></div>
 
-    const sJump = new Audio('jump.wav');
-    const sCrouch = new Audio('crouch.wav');
-    const sSkins = new Audio('skins.wav');
+  <div id="skinMenu" class="menu hidden"></div>
 
-    const skinMenu = document.getElementById("skinMenu");
-    const skinButton = document.getElementById("skinButton");
-    const closeMenu = document.getElementById("closeMenu");
-    
-    let currentPoints = Number(localStorage.getItem("mangonioPoints")) || 0;
-    let unlockedSkins = JSON.parse(localStorage.getItem("unlockedSkins") || "[\"Mangonio\"]");
+  <!-- Sonidos -->
+  <audio id="jumpSound" src="jump.mp3" preload="auto"></audio>
+  <audio id="crouchSound" src="crouch.mp3" preload="auto"></audio>
+  <audio id="skinSound" src="skin_open.mp3" preload="auto"></audio>
 
-    function showSkinMenu() {
-      sSkins.play();
-      skinMenu.innerHTML = '<button id="closeMenu">X</button>';
-      skins.forEach(skin => {
-        const div = document.createElement("div");
-        div.className = "skin-option";
-        const isUnlocked = unlockedSkins.includes(skin.name) || skin.price === 0;
-        div.innerHTML = `
-          <img src="${skin.file}" alt="${skin.name}" />
-          <div>${skin.name}</div>
-          <button>${isUnlocked ? "Seleccionar" : "Comprar por " + skin.price}</button>
-        `;
-        div.querySelector("button").onclick = () => {
-          if (!isUnlocked) {
-            if (currentPoints >= skin.price) {
-              currentPoints -= skin.price;
-              unlockedSkins.push(skin.name);
-              localStorage.setItem("mangonioPoints", currentPoints);
-              localStorage.setItem("unlockedSkins", JSON.stringify(unlockedSkins));
-              alert("Skin desbloqueada: " + skin.name);
-              showSkinMenu();
-            } else {
-              alert("No tienes suficientes puntos.");
-            }
-          } else {
-            mangonioImg.src = skin.file;
-            skinMenu.style.display = "none";
-          }
-        };
-        skinMenu.appendChild(div);
-      });
-      document.getElementById("closeMenu").onclick = () => skinMenu.style.display = "none";
-      skinMenu.style.display = "block";
-    }
-
-    skinButton.onclick = showSkinMenu;
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
