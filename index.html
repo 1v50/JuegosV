@@ -191,7 +191,6 @@ function drawMangonio() {
 }
 
 function drawCactus(cactus) {
-  // Dibujo del cactus más grande
   ctx.drawImage(cactusImg, cactus.x, cactus.y, cactus.width, cactus.height);
 }
 
@@ -233,7 +232,6 @@ function update() {
   drawMangonio();
 
   if (frame % 60 === 0) {
-    // Ahora los cactus serán visiblemente más grandes
     obstacles.push({ 
       x: canvas.width,
       y: canvas.height - 100 - 75,
