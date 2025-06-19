@@ -158,7 +158,7 @@ let isCrouching = false;
 function resetGame() {
   mangonio = {
     x: 60,
-    y: canvas.height - 80 - 70,
+    y: canvas.height - 100 - 70,
     width: 50,
     height: 70,
     vy: 0,
@@ -183,7 +183,7 @@ function resetGame() {
 }
 
 function drawFloor() {
-  ctx.drawImage(arenaImg, 0, canvas.height - 80, canvas.width, 60);
+  ctx.drawImage(arenaImg, 0, canvas.height - 100, canvas.width, 100);
 }
 
 function drawMangonio() {
@@ -191,6 +191,7 @@ function drawMangonio() {
 }
 
 function drawCactus(cactus) {
+  // Dibujo del cactus más grande
   ctx.drawImage(cactusImg, cactus.x, cactus.y, cactus.width, cactus.height);
 }
 
@@ -214,17 +215,17 @@ function update() {
 
   if (isCrouching && mangonio.grounded) {
     mangonio.height = mangonio.crouchHeight;
-    mangonio.y = canvas.height - 80 - mangonio.height;
+    mangonio.y = canvas.height - 100 - mangonio.height;
   } else if (mangonio.height !== mangonio.normalHeight) {
     mangonio.height = mangonio.normalHeight;
-    mangonio.y = canvas.height - 80 - mangonio.height;
+    mangonio.y = canvas.height - 100 - mangonio.height;
   }
 
   mangonio.vy += mangonio.gravity;
   mangonio.y += mangonio.vy;
 
-  if (mangonio.y >= canvas.height - 80 - mangonio.height) {
-    mangonio.y = canvas.height - 80 - mangonio.height;
+  if (mangonio.y >= canvas.height - 100 - mangonio.height) {
+    mangonio.y = canvas.height - 100 - mangonio.height;
     mangonio.vy = 0;
     mangonio.grounded = true;
   }
@@ -232,14 +233,20 @@ function update() {
   drawMangonio();
 
   if (frame % 60 === 0) {
-    obstacles.push({ x: canvas.width, y: canvas.height - 130, width: 20, height: 50 });
+    // Ahora los cactus serán visiblemente más grandes
+    obstacles.push({ 
+      x: canvas.width,
+      y: canvas.height - 100 - 75,
+      width: 30,
+      height: 75
+    });
   }
 
   for (let i = 0; i < obstacles.length; i++) {
     let c = obstacles[i];
     c.x -= speed;
 
-    ctx.drawImage(cactusImg, c.x, c.y, c.width, c.height);
+    drawCactus(c);
 
     const shrink = mangonio.hitboxReduction;
     const cactusHitbox = 0.9;
@@ -335,7 +342,6 @@ function showSkinMenu() {
 skinButton.onclick = showSkinMenu;
 closeMenuBtn.onclick = () => skinMenu.style.display = "none";
 mangonioImg.onload = resetGame;
-
 </script>
 </body>
 </html>
