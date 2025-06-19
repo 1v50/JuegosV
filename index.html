@@ -109,6 +109,7 @@ canvas {
   <div id="skinMenuContent"></div>
 </div>
 <canvas id="game" width="800" height="300"></canvas>
+
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -157,7 +158,7 @@ let isCrouching = false;
 function resetGame() {
   mangonio = {
     x: 60,
-    y: canvas.height - 60 - 70,
+    y: canvas.height - 80 - 70,
     width: 50,
     height: 70,
     vy: 0,
@@ -182,7 +183,7 @@ function resetGame() {
 }
 
 function drawFloor() {
-  ctx.drawImage(arenaImg, 0, canvas.height - 60, canvas.width, 60);
+  ctx.drawImage(arenaImg, 0, canvas.height - 80, canvas.width, 60);
 }
 
 function drawMangonio() {
@@ -213,17 +214,17 @@ function update() {
 
   if (isCrouching && mangonio.grounded) {
     mangonio.height = mangonio.crouchHeight;
-    mangonio.y = canvas.height - 60 - mangonio.height;
+    mangonio.y = canvas.height - 80 - mangonio.height;
   } else if (mangonio.height !== mangonio.normalHeight) {
     mangonio.height = mangonio.normalHeight;
-    mangonio.y = canvas.height - 60 - mangonio.height;
+    mangonio.y = canvas.height - 80 - mangonio.height;
   }
 
   mangonio.vy += mangonio.gravity;
   mangonio.y += mangonio.vy;
 
-  if (mangonio.y >= canvas.height - 60 - mangonio.height) {
-    mangonio.y = canvas.height - 60 - mangonio.height;
+  if (mangonio.y >= canvas.height - 80 - mangonio.height) {
+    mangonio.y = canvas.height - 80 - mangonio.height;
     mangonio.vy = 0;
     mangonio.grounded = true;
   }
@@ -231,14 +232,14 @@ function update() {
   drawMangonio();
 
   if (frame % 60 === 0) {
-    obstacles.push({ x: canvas.width, y: canvas.height - 110, width: 20, height: 50 });
+    obstacles.push({ x: canvas.width, y: canvas.height - 130, width: 20, height: 50 });
   }
 
   for (let i = 0; i < obstacles.length; i++) {
     let c = obstacles[i];
     c.x -= speed;
 
-    drawCactus(c);
+    ctx.drawImage(cactusImg, c.x, c.y, c.width, c.height);
 
     const shrink = mangonio.hitboxReduction;
     const cactusHitbox = 0.9;
@@ -261,8 +262,8 @@ function update() {
   }
 
   obstacles = obstacles.filter(c => c.x + c.width > 0);
-  frame++;
 
+  frame++;
   const elapsedSeconds = (performance.now() - speedStartTime) / 1000;
 
   if (elapsedSeconds > 10 && speed < 8) speed = 8;
@@ -334,6 +335,7 @@ function showSkinMenu() {
 skinButton.onclick = showSkinMenu;
 closeMenuBtn.onclick = () => skinMenu.style.display = "none";
 mangonioImg.onload = resetGame;
+
 </script>
 </body>
 </html>
