@@ -119,12 +119,9 @@
       { name: "Kuchau", file: "kuchau.png" },
       { name: "Polariza", file: "polariza.png" },
       { name: "Gil Shiny", file: "GilShiny.png", requiresCode: true },
-      { name: "CapiCastor", file: "capicastor.png" },
       { name: "Golden Mangonio", file: "GoldenMangonio.png" },
       { name: "IronGonio", file: "IronGonio.png" },
-      { name: "willyngonio", file: "willyngonio.png" },
-      { name: "mangonio.exe", file: "mangonio.exe.png" },
-      { name: "baby mangonio", file: "babymangonio.png" }
+      { name: "mangonio.exe", file: "mangonio.exe.png" }
     ];
 
     let mangonioImg = new Image();
@@ -196,7 +193,6 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawFloor();
 
-      // Agacharse
       if (isCrouching && mangonio.grounded) {
         mangonio.height = mangonio.crouchHeight;
         mangonio.y = canvas.height - 60 - mangonio.height;
@@ -224,7 +220,7 @@
         c.x -= speed;
         drawCactus(c);
 
-        const shrink = 0.9; // 10% reducción hitbox cactus
+        const shrink = 0.9;
         const mx = mangonio.x + mangonio.width * (1 - mangonio.hitboxReduction) / 2;
         const my = mangonio.y + mangonio.height * (1 - mangonio.hitboxReduction) / 2;
         const mw = mangonio.width * mangonio.hitboxReduction;
