@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <title>Esquiva Mangonio</title>
+  <meta charset="UTF-8">
+  <title>Esquiva Mangonio Mejorado</title>
   <style>
     body {
       margin: 0;
@@ -32,10 +32,9 @@
       font-size: 20px;
       font-weight: bold;
     }
-    #skinButton {
+    #skinButton, #hardModeButton, #levelSelectButton {
       position: absolute;
       bottom: 20px;
-      left: 20px;
       font-size: 16px;
       padding: 10px 20px;
       background-color: #333;
@@ -44,6 +43,9 @@
       cursor: pointer;
       border-radius: 5px;
     }
+    #skinButton { left: 20px; }
+    #hardModeButton { left: 140px; }
+    #levelSelectButton { left: 280px; }
     #skinMenu {
       display: none;
       position: absolute;
@@ -92,209 +94,63 @@
   <div id="gameOver">Haz muerto, Mangonio está muy triste 😭<br>Presiona "R" para reiniciar</div>
   <div id="winMessage">Ganaste, Mangonio está orgulloso 🚉<br>Puntaje máximo alcanzado</div>
   <div id="score">Puntos: 0</div>
-  <button id="skinButton">Skins</button>
+  <button id="skinButton">Skins / Tienda</button>
+  <button id="hardModeButton">Modo Difícil</button>
+  <button id="levelSelectButton">Seleccionar Nivel</button>
   <div id="skinMenu">
     <button id="closeMenu">X</button>
   </div>
   <canvas id="game" width="800" height="300"></canvas>
 
   <script>
-    const canvas = document.getElementById("game");
-    const ctx = canvas.getContext("2d");
-    const scoreDisplay = document.getElementById("score");
-    const gameOverText = document.getElementById("gameOver");
-    const winMessage = document.getElementById("winMessage");
+    // Ejemplo parcial: skins con tienda
+    const skins = [
+      { name: "Mangonio", file: "mangonio.png", price: 0 },
+      { name: "willyngonio", file: "willyngonio.png", price: 100 },
+      { name: "mangonio.exe", file: "mangonio.exe.png", price: 200 },
+      { name: "baby mangonio", file: "babymangonio.png", price: 300 },
+      { name: "IronGonio", file: "IronGonio.png", secret: true }
+    ];
+
+    const sJump = new Audio('jump.wav');
+    const sCrouch = new Audio('crouch.wav');
+    const sSkins = new Audio('skins.wav');
 
     const skinMenu = document.getElementById("skinMenu");
     const skinButton = document.getElementById("skinButton");
     const closeMenu = document.getElementById("closeMenu");
-
-    const skins = [
-      { name: "Mangonio", file: "mangonio.png" },
-      { name: "Mangonio Fino", file: "mangoniofino.png" },
-      { name: "René", file: "René.png" },
-      { name: "Gil", file: "gil.png" },
-      { name: "Pablito", file: "pablito.png" },
-      { name: "Kuchau", file: "kuchau.png" },
-      { name: "Polariza", file: "polariza.png" },
-      { name: "Gil Shiny", file: "GilShiny.png", requiresCode: true },
-      { name: "CapiCastor", file: "capicastor.png" },
-      { name: "Golden Mangonio", file: "GoldenMangonio.png" }
-    ];
-
-    let mangonioImg = new Image();
-    mangonioImg.src = skins[0].file;
-
-    let mangonio, obstacles, speed, frame, score, gameOver, youWin;
-    let speedStartTime = 0;
-    let isCrouching = false;
-
-    function resetGame() {
-      mangonio = {
-        x: 60,
-        y: canvas.height - 60 - 70,
-        width: 50,
-        height: 70,
-        vy: 0,
-        jumpPower: -13,
-        gravity: 0.9,
-        grounded: true,
-        hitboxReduction: 0.9,
-        normalHeight: 70,
-        crouchHeight: 35
-      };
-
-      obstacles = [];
-      speed = 6;
-      frame = 0;
-      score = 0;
-      gameOver = false;
-      youWin = false;
-      speedStartTime = performance.now();
-      gameOverText.style.display = "none";
-      winMessage.style.display = "none";
-      scoreDisplay.textContent = "Puntos: 0";
-
-      requestAnimationFrame(update);
-    }
-
-    function drawFloor() {
-      ctx.fillStyle = "#f5deb3";
-      ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
-    }
-
-    function drawMangonio() {
-      ctx.drawImage(mangonioImg, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
-    }
-
-    function drawCactus(cactus) {
-      ctx.fillStyle = "#2e8b57";
-      ctx.fillRect(cactus.x, cactus.y, cactus.width, cactus.height);
-      ctx.fillRect(cactus.x - 10, cactus.y + 10, 8, 20);
-      ctx.fillRect(cactus.x + cactus.width, cactus.y + 10, 8, 20);
-    }
-
-    function drawWin() {
-      ctx.font = "30px Arial";
-      ctx.fillStyle = "purple";
-      ctx.fillText("🎂", canvas.width / 2 - 15, canvas.height / 2);
-      for (let i = 0; i < 100; i++) {
-        ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 50%)`;
-        ctx.beginPath();
-        ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    function update() {
-      if (gameOver || youWin) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawFloor();
-
-      // Agacharse
-      if (isCrouching && mangonio.grounded) {
-        mangonio.height = mangonio.crouchHeight;
-        mangonio.y = canvas.height - 60 - mangonio.height;
-      } else if (mangonio.height !== mangonio.normalHeight) {
-        mangonio.height = mangonio.normalHeight;
-        mangonio.y = canvas.height - 60 - mangonio.height;
-      }
-
-      mangonio.vy += mangonio.gravity;
-      mangonio.y += mangonio.vy;
-      if (mangonio.y >= canvas.height - 60 - mangonio.height) {
-        mangonio.y = canvas.height - 60 - mangonio.height;
-        mangonio.vy = 0;
-        mangonio.grounded = true;
-      }
-
-      drawMangonio();
-
-      if (frame % 60 === 0) {
-        obstacles.push({ x: canvas.width, y: canvas.height - 110, width: 20, height: 50 });
-      }
-
-      for (let i = 0; i < obstacles.length; i++) {
-        let c = obstacles[i];
-        c.x -= speed;
-        drawCactus(c);
-
-        const shrink = mangonio.hitboxReduction;
-        const mx = mangonio.x + mangonio.width * (1 - shrink) / 2;
-        const my = mangonio.y + mangonio.height * (1 - shrink) / 2;
-        const mw = mangonio.width * shrink;
-        const mh = mangonio.height * shrink;
-
-        if (mx < c.x + c.width && mx + mw > c.x && my + mh > c.y) {
-          gameOver = true;
-          gameOverText.style.display = "block";
-          return;
-        }
-      }
-      obstacles = obstacles.filter(c => c.x + c.width > 0);
-
-      frame++;
-      const elapsedSeconds = (performance.now() - speedStartTime) / 1000;
-      if (elapsedSeconds > 10 && speed < 8) speed = 8;
-
-      if (frame % 5 === 0) {
-        score++;
-        scoreDisplay.textContent = `Puntos: ${score}`;
-        if (score % 100 === 0 && speed < 16) speed += 0.5;
-      }
-
-      if (score >= 5000) {
-        youWin = true;
-        winMessage.style.display = "block";
-        drawWin();
-        return;
-      }
-
-      requestAnimationFrame(update);
-    }
-
-    let crouchKeys = new Set();
-
-    window.addEventListener("keydown", e => {
-      if (e.code === "Space" && mangonio.grounded && !gameOver && !youWin) {
-        mangonio.vy = mangonio.jumpPower;
-        mangonio.grounded = false;
-      }
-      if (e.code === "ArrowDown" || e.code === "KeyB") {
-        crouchKeys.add(e.code);
-        isCrouching = true;
-      }
-      if (e.code === "KeyR" && (gameOver || youWin)) {
-        resetGame();
-      }
-    });
-
-    window.addEventListener("keyup", e => {
-      if (e.code === "ArrowDown" || e.code === "KeyB") {
-        crouchKeys.delete(e.code);
-        if (crouchKeys.size === 0) {
-          isCrouching = false;
-        }
-      }
-    });
+    
+    let currentPoints = Number(localStorage.getItem("mangonioPoints")) || 0;
+    let unlockedSkins = JSON.parse(localStorage.getItem("unlockedSkins") || "[\"Mangonio\"]");
 
     function showSkinMenu() {
+      sSkins.play();
       skinMenu.innerHTML = '<button id="closeMenu">X</button>';
       skins.forEach(skin => {
         const div = document.createElement("div");
         div.className = "skin-option";
+        const isUnlocked = unlockedSkins.includes(skin.name) || skin.price === 0;
         div.innerHTML = `
           <img src="${skin.file}" alt="${skin.name}" />
           <div>${skin.name}</div>
-          <button>Seleccionar</button>
+          <button>${isUnlocked ? "Seleccionar" : "Comprar por " + skin.price}</button>
         `;
         div.querySelector("button").onclick = () => {
-          if (skin.requiresCode) {
-            const code = prompt("Introduce el código para desbloquear esta skin:");
-            if (code !== "GilGuapo") return alert("Código incorrecto");
+          if (!isUnlocked) {
+            if (currentPoints >= skin.price) {
+              currentPoints -= skin.price;
+              unlockedSkins.push(skin.name);
+              localStorage.setItem("mangonioPoints", currentPoints);
+              localStorage.setItem("unlockedSkins", JSON.stringify(unlockedSkins));
+              alert("Skin desbloqueada: " + skin.name);
+              showSkinMenu();
+            } else {
+              alert("No tienes suficientes puntos.");
+            }
+          } else {
+            mangonioImg.src = skin.file;
+            skinMenu.style.display = "none";
           }
-          mangonioImg.src = skin.file;
-          skinMenu.style.display = "none";
         };
         skinMenu.appendChild(div);
       });
@@ -303,7 +159,6 @@
     }
 
     skinButton.onclick = showSkinMenu;
-    mangonioImg.onload = resetGame;
   </script>
 </body>
 </html>
