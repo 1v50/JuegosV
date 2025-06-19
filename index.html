@@ -180,10 +180,10 @@
 
       if (isCrouching && mangonio.grounded) {
         mangonio.height = mangonio.crouchHeight;
-        mangonio.y = canvas.height - 120 - mangonio.height;
+        mangonio.y = canvas.height - 130 - mangonio.height;
       } else if (mangonio.height !== mangonio.normalHeight) {
         mangonio.height = mangonio.normalHeight;
-        mangonio.y = canvas.height - 120 - mangonio.height;
+        mangonio.y = canvas.height - 130 - mangonio.height;
       }
 
       mangonio.vy += mangonio.gravity;
