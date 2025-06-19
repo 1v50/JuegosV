@@ -1,396 +1,301 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <title>Esquiva Mangonio</title>
-  <style>
-    body {
-      margin: 0;
-      background: #def;
-      overflow: hidden;
-      font-family: sans-serif;
-    }
-    canvas {
-      display: block;
-      margin: auto;
-      background: #b2ebf2;
-      border: 5px solid #333;
-    }
-    #gameOver, #winMessage {
-      position: absolute;
-      top: 30%;
-      width: 100%;
-      text-align: center;
-      font-size: 2em;
-      color: red;
-      display: none;
-      z-index: 15;
-    }
-    #score {
-      position: absolute;
-      top: 10px;
-      left: 20px;
-      font-size: 20px;
-      font-weight: bold;
-      z-index: 15;
-    }
-    #skinButton, #rouletteButton {
-      position: absolute;
-      bottom: 20px;
-      font-size: 16px;
-      padding: 10px 20px;
-      background-color: #333;
-      color: white;
-      border: none;
-      cursor: pointer;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      z-index: 15;
-    }
-    #skinButton {
-      left: 20px;
-    }
-    #rouletteButton {
-      right: 20px;
-    }
-    #skinMenu, #rouletteMenu {
-      display: none;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: #fff;
-      border: 2px solid #000;
-      padding: 20px;
-      z-index: 20;
-      max-width: 600px;
-      width: 90%;
-      max-height: 70vh;
-      overflow-y: auto;
-      box-shadow: 0 0 15px rgba(0,0,0,0.5);
-    }
-    .skin-option {
-      display: inline-block;
-      width: 120px;
-      margin: 10px;
-      text-align: center;
-    }
-    .skin-option img {
-      width: 100px;
-      height: 100px;
-      object-fit: cover;
-      border: 2px solid #000;
-      border-radius: 10px;
-    }
-    .skin-option button {
-      margin-top: 5px;
-      padding: 5px 10px;
-      cursor: pointer;
-    }
-    #closeMenu, #closeRouletteMenu {
-      position: absolute;
-      top: 5px;
-      right: 10px;
-      font-size: 18px;
-      background: red;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      cursor: pointer;
-    }
-    .reward-display {
-      text-align: center;
-      margin-top: 20px;
-    }
-    .reward-display img {
-      width: 100px;
-      height: 100px;
-    }
-    .reward-display button {
-      margin-top: 10px;
-      padding: 10px 20px;
-      cursor: pointer;
-    }
+<script>
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const scoreDisplay = document.getElementById("score");
+  const gameOverText = document.getElementById("gameOver");
+  const winMessage = document.getElementById("winMessage");
+  const skinMenu = document.getElementById("skinMenu");
+  const skinButton = document.getElementById("skinButton");
+  const closeMenu = document.getElementById("closeMenu");
 
-    /* Contador de monedas arriba a la derecha */
-    #coinDisplay {
-      position: absolute;
-      top: 10px;
-      right: 20px;
-      display: flex;
-      align-items: center;
-      font-size: 20px;
-      font-weight: bold;
-      background-color: rgba(255,255,255,0.8);
-      padding: 5px 10px;
-      border-radius: 15px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.3);
-      z-index: 20;
-    }
-    #coinIcon {
-      width: 24px;
-      height: 24px;
-      margin-right: 8px;
-    }
-  </style>
-</head>
-<body>
-  <div id="gameOver">Haz muerto, Mangonio está muy triste 😭<br>Presiona "R" para reiniciar</div>
-  <div id="winMessage">Ganaste, Mangonio está orgulloso 🚉<br>Puntaje máximo alcanzado</div>
-  <div id="score">Puntos: 0</div>
-  <button id="skinButton">Skins</button>
-  <button id="rouletteButton"><img src="ruleta.png" alt="Ruleta" width="30" height="30"/>Ruleta</button>
-  <div id="skinMenu"><button id="closeMenu">X</button></div>
-  <div id="rouletteMenu"><button id="closeRouletteMenu">X</button>
-    <div style="text-align: center;">
-      <img src="ruleta.png" alt="Ruleta" style="width:200px;"><br>
-      <p>¡Gira la ruleta para ganar una recompensa cada 30 minutos!</p>
-      <ul style="text-align: left;">
-        <li>200 Mango Coins</li>
-        <li>400 Mango Coins</li>
-        <li>800 Mango Coins</li>
-        <li>2400 Mango Coins</li>
-        <li>Skin: Mangonio Frozen</li>
-        <li>Skin: Mangonio Faraón</li>
-        <li>Skin: René Cromo</li>
-      </ul>
-      <button id="spinRoulette">Girar</button>
-      <div class="reward-display" id="rewardDisplay"></div>
-    </div>
-  </div>
+  const skins = [
+    { name: "Mangonio", file: "mangonio.png" },
+    { name: "Mangonio Fino", file: "mangoniofino.png" },
+    { name: "René", file: "René.png" },
+    { name: "Gil", file: "gil.png" },
+    { name: "Pablito", file: "pablito.png" },
+    { name: "Kuchau", file: "kuchau.png" },
+    { name: "Polariza", file: "polariza.png" },
+    { name: "Gil Shiny", file: "GilShiny.png", requiresCode: true },
+    { name: "Golden Mangonio", file: "GoldenMangonio.png" },
+    { name: "IronGonio", file: "IronGonio.png" },
+    { name: "mangonio.exe", file: "mangonio.exe.png" }
+  ];
 
-  <div id="coinDisplay">
-    <img src="coin.png" alt="Mango Coins" id="coinIcon">
-    <span id="coinCount">0</span>
-  </div>
+  let mangonioImg = new Image();
+  mangonioImg.src = skins[0].file;
 
-  <canvas id="game" width="800" height="300"></canvas>
+  let mangonio, obstacles, coins, speed, frame, score, gameOver, youWin;
+  let speedStartTime = 0;
+  let isCrouching = false;
 
-  <script>
-    // ----------------------------
-    // SISTEMA DE MONEDAS
-    // ----------------------------
-
-    function getCoins() {
-      return parseInt(localStorage.getItem("mangoCoins")) || 0;
-    }
-
-    function setCoins(amount) {
-      localStorage.setItem("mangoCoins", amount);
-      updateCoinDisplay();
-    }
-
-    function addCoins(amount) {
-      const current = getCoins();
-      setCoins(current + amount);
-    }
-
-    function updateCoinDisplay() {
-      document.getElementById("coinCount").textContent = getCoins();
-    }
-
-    // ----------------------------
-    // SISTEMA DE SKINS Y RULETA
-    // ----------------------------
-
-    const skins = [
-      { name: "Mangonio", file: "mangonio.png" },
-      { name: "Mangonio Fino", file: "mangoniofino.png" },
-      { name: "René", file: "René.png" },
-      { name: "Gil", file: "gil.png" },
-      { name: "Pablito", file: "pablito.png" },
-      { name: "Kuchau", file: "kuchau.png" },
-      { name: "Polariza", file: "polariza.png" },
-      { name: "Gil Shiny", file: "GilShiny.png", requiresCode: true },
-      { name: "mangonio.exe", file: "mangonio.exe.png" },
-      { name: "Mangonio Frozen", file: "mangoniofrozen.png", rewardOnly: true },
-      { name: "Mangonio Faraón", file: "mangoniofaraon.png", rewardOnly: true },
-      { name: "René Cromo", file: "renecromo.png", rewardOnly: true }
-    ];
-
-    let unlockedSkins = JSON.parse(localStorage.getItem('unlockedSkins') || '[]');
-    const mangonioImg = new Image();
-    mangonioImg.src = skins[0].file;
-
-    const skinMenu = document.getElementById("skinMenu");
-    const skinButton = document.getElementById("skinButton");
-    const closeMenu = document.getElementById("closeMenu");
-    const rouletteMenu = document.getElementById("rouletteMenu");
-    const rouletteButton = document.getElementById("rouletteButton");
-    const closeRouletteMenu = document.getElementById("closeRouletteMenu");
-    const spinRoulette = document.getElementById("spinRoulette");
-    const rewardDisplay = document.getElementById("rewardDisplay");
-
-    skinButton.onclick = showSkinMenu;
-    closeMenu.onclick = () => skinMenu.style.display = "none";
-    rouletteButton.onclick = () => rouletteMenu.style.display = "block";
-    closeRouletteMenu.onclick = () => rouletteMenu.style.display = "none";
-
-    function showSkinMenu() {
-      skinMenu.innerHTML = '<button id="closeMenu">X</button>';
-      skins.forEach(skin => {
-        if (skin.rewardOnly && !unlockedSkins.includes(skin.name)) return;
-        const div = document.createElement("div");
-        div.className = "skin-option";
-        div.innerHTML = `
-          <img src="${skin.file}" alt="${skin.name}" />
-          <div>${skin.name}</div>
-          <button>Seleccionar</button>
-        `;
-        div.querySelector("button").onclick = () => {
-          if (skin.requiresCode) {
-            const code = prompt("Introduce el código para desbloquear esta skin:");
-            if (code !== "GilGuapo") return alert("Código incorrecto");
-          }
-          mangonioImg.src = skin.file;
-          skinMenu.style.display = "none";
-        };
-        skinMenu.appendChild(div);
-      });
-      document.getElementById("closeMenu").onclick = () => skinMenu.style.display = "none";
-      skinMenu.style.display = "block";
-    }
-
-    const rewards = [
-      { type: 'coins', amount: 200 },
-      { type: 'coins', amount: 400 },
-      { type: 'coins', amount: 800 },
-      { type: 'coins', amount: 2400 },
-      { type: 'skin', name: 'Mangonio Frozen', file: 'mangoniofrozen.png' },
-      { type: 'skin', name: 'Mangonio Faraón', file: 'mangoniofaraon.png' },
-      { type: 'skin', name: 'René Cromo', file: 'renecromo.png' }
-    ];
-
-    spinRoulette.onclick = () => {
-      const lastSpin = parseInt(localStorage.getItem('lastRouletteSpin') || '0');
-      if (Date.now() - lastSpin < 30 * 60 * 1000) {
-        return alert("Debes esperar 30 minutos entre giros");
-      }
-      localStorage.setItem('lastRouletteSpin', Date.now().toString());
-      const reward = rewards[Math.floor(Math.random() * rewards.length)];
-      rewardDisplay.innerHTML = '';
-      if (reward.type === 'coins') {
-        rewardDisplay.innerHTML = `
-          <p>¡Has ganado ${reward.amount} Mango Coins!</p>
-          <img src="coin.png" alt="Coins">
-          <button id="claimCoinsBtn">Reclamar</button>
-        `;
-        document.getElementById('claimCoinsBtn').onclick = () => {
-          addCoins(reward.amount);
-          rouletteMenu.style.display = 'none';
-        };
-      } else {
-        if (!unlockedSkins.includes(reward.name)) {
-          unlockedSkins.push(reward.name);
-          localStorage.setItem('unlockedSkins', JSON.stringify(unlockedSkins));
-        }
-        rewardDisplay.innerHTML = `
-          <p>¡Has desbloqueado la skin: ${reward.name}!</p>
-          <img src="${reward.file}" alt="${reward.name}">
-          <button id="claimSkinBtn">Reclamar</button>
-        `;
-        document.getElementById('claimSkinBtn').onclick = () => {
-          rouletteMenu.style.display = 'none';
-        };
-      }
+  function resetGame() {
+    mangonio = {
+      x: 60,
+      y: canvas.height - 60 - 70,
+      width: 50,
+      height: 70,
+      vy: 0,
+      jumpPower: -13,
+      gravity: 0.9,
+      grounded: true,
+      hitboxReduction: 0.9,
+      normalHeight: 70,
+      crouchHeight: 35
     };
 
-    // ----------------------------
-    // Lógica básica del juego para que no se quede en azul
-    // (Ejemplo simple para que el canvas se vea funcional)
-    // ----------------------------
+    obstacles = [];
+    coins = [];
+    speed = 6;
+    frame = 0;
+    score = 0;
+    gameOver = false;
+    youWin = false;
+    speedStartTime = performance.now();
+    gameOverText.style.display = "none";
+    winMessage.style.display = "none";
+    scoreDisplay.textContent = "Puntos: 0";
 
-    const canvas = document.getElementById('game');
-    const ctx = canvas.getContext('2d');
+    requestAnimationFrame(update);
+  }
 
-    let player = { x: 50, y: 150, width: 50, height: 50, speed: 5 };
-    let obstacles = [];
-    let score = 0;
-    let gameOver = false;
+  function drawFloor() {
+    ctx.fillStyle = "#f5deb3";
+    ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
+  }
 
-    function spawnObstacle() {
-      const size = 30 + Math.random() * 20;
-      obstacles.push({ x: canvas.width, y: Math.random() * (canvas.height - size), width: size, height: size, speed: 3 + Math.random() * 3 });
+  function drawMangonio() {
+    ctx.drawImage(mangonioImg, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
+  }
+
+  function drawCactus(cactus) {
+    ctx.fillStyle = "#2e8b57";
+    ctx.fillRect(cactus.x, cactus.y, cactus.width, cactus.height);
+    ctx.fillRect(cactus.x - 10, cactus.y + 10, 8, 20);
+    ctx.fillRect(cactus.x + cactus.width, cactus.y + 10, 8, 20);
+  }
+
+  function drawCoin(coin) {
+    ctx.fillStyle = "gold";
+    ctx.beginPath();
+    ctx.arc(coin.x, coin.y, coin.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "orange";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  function drawWin() {
+    ctx.font = "30px Arial";
+    ctx.fillStyle = "purple";
+    ctx.fillText("🎂", canvas.width / 2 - 15, canvas.height / 2);
+    for (let i = 0; i < 100; i++) {
+      ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 50%)`;
+      ctx.beginPath();
+      ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Función para verificar colisiones simples entre rectángulo y círculo
+  function rectCircleColliding(rect, circle) {
+    const distX = Math.abs(circle.x - rect.x - rect.width / 2);
+    const distY = Math.abs(circle.y - rect.y - rect.height / 2);
+
+    if (distX > (rect.width / 2 + circle.radius)) { return false; }
+    if (distY > (rect.height / 2 + circle.radius)) { return false; }
+
+    if (distX <= (rect.width / 2)) { return true; }
+    if (distY <= (rect.height / 2)) { return true; }
+
+    const dx = distX - rect.width / 2;
+    const dy = distY - rect.height / 2;
+    return (dx * dx + dy * dy <= (circle.radius * circle.radius));
+  }
+
+  function update() {
+    if (gameOver || youWin) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawFloor();
+
+    if (isCrouching && mangonio.grounded) {
+      mangonio.height = mangonio.crouchHeight;
+      mangonio.y = canvas.height - 60 - mangonio.height;
+    } else if (mangonio.height !== mangonio.normalHeight) {
+      mangonio.height = mangonio.normalHeight;
+      mangonio.y = canvas.height - 60 - mangonio.height;
     }
 
-    function resetGame() {
-      obstacles = [];
-      score = 0;
-      gameOver = false;
-      updateScore();
+    mangonio.vy += mangonio.gravity;
+    mangonio.y += mangonio.vy;
+    if (mangonio.y >= canvas.height - 60 - mangonio.height) {
+      mangonio.y = canvas.height - 60 - mangonio.height;
+      mangonio.vy = 0;
+      mangonio.grounded = true;
     }
 
-    function updateScore() {
-      document.getElementById('score').textContent = `Puntos: ${score}`;
+    drawMangonio();
+
+    // Generar cactus cada 60 frames
+    if (frame % 60 === 0) {
+      obstacles.push({ x: canvas.width, y: canvas.height - 110, width: 20, height: 50 });
     }
 
-    function gameLoop() {
-      if (gameOver) return;
+    // Mover cactus y detectar colisiones
+    for (let i = 0; i < obstacles.length; i++) {
+      let c = obstacles[i];
+      c.x -= speed;
+      drawCactus(c);
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Dibuja jugador (usar imagen de skin)
-      ctx.drawImage(mangonioImg, player.x, player.y, player.width, player.height);
+      const shrink = 0.9;
+      const mx = mangonio.x + mangonio.width * (1 - mangonio.hitboxReduction) / 2;
+      const my = mangonio.y + mangonio.height * (1 - mangonio.hitboxReduction) / 2;
+      const mw = mangonio.width * mangonio.hitboxReduction;
+      const mh = mangonio.height * mangonio.hitboxReduction;
 
-      // Mueve y dibuja obstáculos
-      obstacles.forEach((ob, index) => {
-        ob.x -= ob.speed;
-        ctx.fillStyle = 'red';
-        ctx.fillRect(ob.x, ob.y, ob.width, ob.height);
+      const cx = c.x + (1 - shrink) * c.width / 2;
+      const cw = c.width * shrink;
 
-        // Colisión simple
-        if (
-          player.x < ob.x + ob.width &&
-          player.x + player.width > ob.x &&
-          player.y < ob.y + ob.height &&
-          player.y + player.height > ob.y
-        ) {
-          gameOver = true;
-          document.getElementById('gameOver').style.display = 'block';
-        }
-
-        // Si sale de pantalla, suma puntos y elimina obstáculo
-        if (ob.x + ob.width < 0) {
-          obstacles.splice(index, 1);
-          score++;
-          updateScore();
-          addCoins(1); // da 1 moneda por cada obstáculo evadido
-        }
-      });
-
-      requestAnimationFrame(gameLoop);
-    }
-
-    // Controles simples con teclado (arriba/abajo)
-    window.addEventListener('keydown', e => {
-      if (gameOver && e.key.toLowerCase() === 'r') {
-        document.getElementById('gameOver').style.display = 'none';
-        resetGame();
-        gameLoop();
+      if (mx < cx + cw && mx + mw > cx && my + mh > c.y) {
+        gameOver = true;
+        gameOverText.style.display = "block";
+        return;
       }
-      if (!gameOver) {
-        if (e.key === 'ArrowUp') player.y -= player.speed;
-        if (e.key === 'ArrowDown') player.y += player.speed;
+    }
 
-        // Limitar al canvas
-        if (player.y < 0) player.y = 0;
-        if (player.y + player.height > canvas.height) player.y = canvas.height - player.height;
+    // Eliminar cactus fuera de pantalla
+    obstacles = obstacles.filter(c => c.x + c.width > 0);
+
+    // --- Lógica para generar monedas entre cada par de cactus cada 2 cactus pasados ---
+    // Aquí contamos cuántos cactus ya pasaron de la posición de mangonio
+    // Cada vez que pasamos 2 cactus, generamos una moneda entre esos dos
+    // Evitamos repetir moneda usando un contador
+
+    // Variables para control de monedas y cactus pasados
+    // Usamos frame para chequear sólo cada frame
+    if (!update.passedCactusCount) update.passedCactusCount = 0;
+    if (!update.lastPassedIndex) update.lastPassedIndex = -1;
+
+    // Revisamos si un cactus ya pasó al jugador
+    // Para eso, verificamos que cactus.x + cactus.width < mangonio.x
+    obstacles.forEach((c, i) => {
+      if (!c.passed && (c.x + c.width < mangonio.x)) {
+        c.passed = true;
+        update.passedCactusCount++;
       }
     });
 
-    // Spawn obstáculos cada 1.5 segundos
-    setInterval(() => {
-      if (!gameOver) spawnObstacle();
-    }, 1500);
+    // Cuando pasamos 2 cactus, generamos la moneda entre ellos
+    // Solo si la moneda para ese par no fue creada (usaremos lastPassedIndex)
+    if (update.passedCactusCount >= 2) {
+      // Obtenemos los dos cactus más recientes que pasaron (en orden)
+      const passedCactuses = obstacles.filter(c => c.passed);
+      if (passedCactuses.length >= 2) {
+        // Tomamos los dos cactus más antiguos pasados para crear la moneda entre ellos
+        let c1 = passedCactuses[passedCactuses.length - 2];
+        let c2 = passedCactuses[passedCactuses.length - 1];
 
-    // Iniciar juego y monedas
-    window.addEventListener("load", () => {
-      updateCoinDisplay();
+        // Solo crear moneda si no existe una para estos cactus
+        // Para evitar repeticiones, guardamos el último índice de cactus que creó moneda
+        if (update.lastPassedIndex < c2.x) {
+          // Posición media en x entre ambos cactus
+          const coinX = (c1.x + c2.x + c1.width) / 2;
+          // Altura de la moneda justo encima del suelo (similar altura cactus)
+          const coinY = canvas.height - 110 - 20;
+          coins.push({ x: coinX, y: coinY, radius: 10 });
+          update.lastPassedIndex = c2.x;
+          update.passedCactusCount = 0;
+        }
+      }
+    }
+
+    // Dibujar y mover monedas hacia la izquierda (igual que cactus)
+    for (let i = 0; i < coins.length; i++) {
+      let coin = coins[i];
+      coin.x -= speed;
+      drawCoin(coin);
+
+      // Detectar colisión entre mangonio y moneda
+      if (rectCircleColliding(mangonio, coin)) {
+        score += 10; // Cada moneda suma 10 puntos extra
+        coins.splice(i, 1);
+        i--;
+        scoreDisplay.textContent = `Puntos: ${score}`;
+      }
+    }
+
+    // Eliminar monedas fuera de pantalla
+    coins = coins.filter(c => c.x + c.radius > 0);
+
+    frame++;
+    const elapsedSeconds = (performance.now() - speedStartTime) / 1000;
+    if (elapsedSeconds > 10 && speed < 8) speed = 8;
+
+    if (frame % 5 === 0) {
+      score++;
+      scoreDisplay.textContent = `Puntos: ${score}`;
+      if (score % 100 === 0 && speed < 16) speed += 0.5;
+    }
+
+    if (score >= 5000) {
+      youWin = true;
+      winMessage.style.display = "block";
+      drawWin();
+      return;
+    }
+
+    requestAnimationFrame(update);
+  }
+
+  let crouchKeys = new Set();
+
+  window.addEventListener("keydown", e => {
+    if ((e.code === "Space" || e.code === "ArrowUp") && mangonio.grounded && !gameOver && !youWin) {
+      mangonio.vy = mangonio.jumpPower;
+      mangonio.grounded = false;
+    }
+    if (e.code === "ArrowDown" || e.code === "KeyB") {
+      crouchKeys.add(e.code);
+      isCrouching = true;
+    }
+    if (e.code === "KeyR" && (gameOver || youWin)) {
       resetGame();
-      gameLoop();
+    }
+  });
+
+  window.addEventListener("keyup", e => {
+    if (e.code === "ArrowDown" || e.code === "KeyB") {
+      crouchKeys.delete(e.code);
+      if (crouchKeys.size === 0) {
+        isCrouching = false;
+      }
+    }
+  });
+
+  function showSkinMenu() {
+    skinMenu.innerHTML = '<button id="closeMenu">X</button>';
+    skins.forEach(skin => {
+      const div = document.createElement("div");
+      div.className = "skin-option";
+      div.innerHTML = `
+        <img src="${skin.file}" alt="${skin.name}" />
+        <div>${skin.name}</div>
+        <button>Seleccionar</button>
+      `;
+      div.querySelector("button").onclick = () => {
+        if (skin.requiresCode) {
+          const code = prompt("Introduce el código para desbloquear esta skin:");
+          if (code !== "GilGuapo") return alert("Código incorrecto");
+        }
+        mangonioImg.src = skin.file;
+        skinMenu.style.display = "none";
+      };
+      skinMenu.appendChild(div);
     });
-  </script>
-</body>
-</html>
+    document.getElementById("closeMenu").onclick = () => skinMenu.style.display = "none";
+    skinMenu.style.display = "block";
+  }
+
+  skinButton.onclick = showSkinMenu;
+  mangonioImg.onload = resetGame;
+</script>
