@@ -253,12 +253,15 @@
       requestAnimationFrame(update);
     }
 
+    let crouchKeys = new Set();
+
     window.addEventListener("keydown", e => {
-      if ((e.code === "Space" || e.code === "ArrowUp") && mangonio.grounded && !gameOver && !youWin) {
+      if (e.code === "Space" && mangonio.grounded && !gameOver && !youWin) {
         mangonio.vy = mangonio.jumpPower;
         mangonio.grounded = false;
       }
       if (e.code === "ArrowDown" || e.code === "KeyB") {
+        crouchKeys.add(e.code);
         isCrouching = true;
       }
       if (e.code === "KeyR" && (gameOver || youWin)) {
@@ -268,50 +271,39 @@
 
     window.addEventListener("keyup", e => {
       if (e.code === "ArrowDown" || e.code === "KeyB") {
-        isCrouching = false;
+        crouchKeys.delete(e.code);
+        if (crouchKeys.size === 0) {
+          isCrouching = false;
+        }
       }
     });
 
-    skinButton.onclick = () => {
-      showSkinMenu();
-    };
-
-    closeMenu.onclick = () => {
-      skinMenu.style.display = "none";
-    };
-
     function showSkinMenu() {
-      skinMenu.innerHTML = `<button id="closeMenu">X</button>`;
-      const closeBtn = skinMenu.querySelector("#closeMenu");
-      closeBtn.onclick = () => {
-        skinMenu.style.display = "none";
-      };
-
-      skins.forEach((skin, index) => {
+      skinMenu.innerHTML = '<button id="closeMenu">X</button>';
+      skins.forEach(skin => {
         const div = document.createElement("div");
         div.className = "skin-option";
         div.innerHTML = `
-          <img src="${skin.file}" alt="${skin.name}">
+          <img src="${skin.file}" alt="${skin.name}" />
           <div>${skin.name}</div>
-          <button data-index="${index}">Seleccionar</button>
+          <button>Seleccionar</button>
         `;
-        skinMenu.appendChild(div);
-      });
-
-      const buttons = skinMenu.querySelectorAll("button[data-index]");
-      buttons.forEach(btn => {
-        btn.onclick = () => {
-          const i = parseInt(btn.getAttribute("data-index"));
-          mangonioImg.src = skins[i].file;
+        div.querySelector("button").onclick = () => {
+          if (skin.requiresCode) {
+            const code = prompt("Introduce el código para desbloquear esta skin:");
+            if (code !== "GilGuapo") return alert("Código incorrecto");
+          }
+          mangonioImg.src = skin.file;
           skinMenu.style.display = "none";
         };
+        skinMenu.appendChild(div);
       });
-
+      document.getElementById("closeMenu").onclick = () => skinMenu.style.display = "none";
       skinMenu.style.display = "block";
     }
 
-    // Inicio
-    resetGame();
+    skinButton.onclick = showSkinMenu;
+    mangonioImg.onload = resetGame;
   </script>
 </body>
 </html>
