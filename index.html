@@ -24,6 +24,7 @@
       font-size: 2em;
       color: red;
       display: none;
+      z-index: 15;
     }
     #score {
       position: absolute;
@@ -31,6 +32,7 @@
       left: 20px;
       font-size: 20px;
       font-weight: bold;
+      z-index: 15;
     }
     #skinButton, #rouletteButton {
       position: absolute;
@@ -45,6 +47,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      z-index: 15;
     }
     #skinButton {
       left: 20px;
@@ -61,7 +64,7 @@
       background: #fff;
       border: 2px solid #000;
       padding: 20px;
-      z-index: 10;
+      z-index: 20;
       max-width: 600px;
       width: 90%;
       max-height: 70vh;
@@ -84,6 +87,7 @@
     .skin-option button {
       margin-top: 5px;
       padding: 5px 10px;
+      cursor: pointer;
     }
     #closeMenu, #closeRouletteMenu {
       position: absolute;
@@ -107,6 +111,7 @@
     .reward-display button {
       margin-top: 10px;
       padding: 10px 20px;
+      cursor: pointer;
     }
 
     /* Contador de monedas arriba a la derecha */
@@ -292,9 +297,99 @@
       }
     };
 
-    // Inicializar visualmente
+    // ----------------------------
+    // Lógica básica del juego para que no se quede en azul
+    // (Ejemplo simple para que el canvas se vea funcional)
+    // ----------------------------
+
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    let player = { x: 50, y: 150, width: 50, height: 50, speed: 5 };
+    let obstacles = [];
+    let score = 0;
+    let gameOver = false;
+
+    function spawnObstacle() {
+      const size = 30 + Math.random() * 20;
+      obstacles.push({ x: canvas.width, y: Math.random() * (canvas.height - size), width: size, height: size, speed: 3 + Math.random() * 3 });
+    }
+
+    function resetGame() {
+      obstacles = [];
+      score = 0;
+      gameOver = false;
+      updateScore();
+    }
+
+    function updateScore() {
+      document.getElementById('score').textContent = `Puntos: ${score}`;
+    }
+
+    function gameLoop() {
+      if (gameOver) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Dibuja jugador (usar imagen de skin)
+      ctx.drawImage(mangonioImg, player.x, player.y, player.width, player.height);
+
+      // Mueve y dibuja obstáculos
+      obstacles.forEach((ob, index) => {
+        ob.x -= ob.speed;
+        ctx.fillStyle = 'red';
+        ctx.fillRect(ob.x, ob.y, ob.width, ob.height);
+
+        // Colisión simple
+        if (
+          player.x < ob.x + ob.width &&
+          player.x + player.width > ob.x &&
+          player.y < ob.y + ob.height &&
+          player.y + player.height > ob.y
+        ) {
+          gameOver = true;
+          document.getElementById('gameOver').style.display = 'block';
+        }
+
+        // Si sale de pantalla, suma puntos y elimina obstáculo
+        if (ob.x + ob.width < 0) {
+          obstacles.splice(index, 1);
+          score++;
+          updateScore();
+          addCoins(1); // da 1 moneda por cada obstáculo evadido
+        }
+      });
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Controles simples con teclado (arriba/abajo)
+    window.addEventListener('keydown', e => {
+      if (gameOver && e.key.toLowerCase() === 'r') {
+        document.getElementById('gameOver').style.display = 'none';
+        resetGame();
+        gameLoop();
+      }
+      if (!gameOver) {
+        if (e.key === 'ArrowUp') player.y -= player.speed;
+        if (e.key === 'ArrowDown') player.y += player.speed;
+
+        // Limitar al canvas
+        if (player.y < 0) player.y = 0;
+        if (player.y + player.height > canvas.height) player.y = canvas.height - player.height;
+      }
+    });
+
+    // Spawn obstáculos cada 1.5 segundos
+    setInterval(() => {
+      if (!gameOver) spawnObstacle();
+    }, 1500);
+
+    // Iniciar juego y monedas
     window.addEventListener("load", () => {
       updateCoinDisplay();
+      resetGame();
+      gameLoop();
     });
   </script>
 </body>
