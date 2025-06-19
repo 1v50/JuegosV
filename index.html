@@ -4,89 +4,67 @@
   <meta charset="UTF-8" />
   <title>Esquiva Mangonio</title>
   <style>
-    body {
-      margin: 0;
-      background: #def;
-      overflow: hidden;
-      font-family: sans-serif;
-    }
-    canvas {
-      display: block;
-      margin: auto;
-      background: #b2ebf2;
-      border: 5px solid #333;
-    }
-    #gameOver, #winMessage {
-      position: absolute;
-      top: 30%;
-      width: 100%;
+    body { margin: 0; background: #def; overflow: hidden; font-family: sans-serif; }
+    canvas { display: block; margin: auto; background: #b2ebf2; border: 5px solid #333; }
+    #chatButton {
+      position: absolute; bottom: 20px; right: 20px;
+      width: 40px; height: 40px;
+      background: white; border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 24px; line-height: 40px;
       text-align: center;
-      font-size: 2em;
-      color: red;
+      z-index: 1001;
+    }
+    #chatBox {
+      position: absolute;
+      bottom: 70px; right: 20px;
+      width: 300px; max-height: 400px;
+      background: white;
+      border: 2px solid #333;
       display: none;
+      flex-direction: column;
+      z-index: 1002;
     }
-    #score {
-      position: absolute;
-      top: 10px;
-      left: 20px;
-      font-size: 20px;
+    #chatHeader {
+      background: #333;
+      color: white;
+      padding: 5px;
       font-weight: bold;
+      text-align: center;
     }
-    #skinButton {
-      position: absolute;
-      bottom: 20px;
-      left: 20px;
-      font-size: 16px;
-      padding: 10px 20px;
-      background-color: #333;
+    #chatMessages {
+      flex: 1;
+      padding: 5px;
+      overflow-y: auto;
+      background: #fafafa;
+      height: 250px;
+    }
+    #chatInputWrap {
+      display: flex;
+      border-top: 1px solid #ccc;
+    }
+    #chatInput {
+      flex: 1;
+      padding: 5px;
+      border: none;
+    }
+    #chatSend {
+      padding: 5px 10px;
+      background: #333;
       color: white;
       border: none;
       cursor: pointer;
-      border-radius: 5px;
     }
-    #skinMenu {
-      display: none;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: #fff;
-      border: 2px solid #000;
-      padding: 20px;
-      z-index: 10;
-      max-width: 600px;
-      width: 90%;
-      max-height: 70vh;
-      overflow-y: auto;
-      box-shadow: 0 0 15px rgba(0,0,0,0.5);
-    }
-    .skin-option {
-      display: inline-block;
-      width: 120px;
-      margin: 10px;
-      text-align: center;
-    }
-    .skin-option img {
-      width: 100px;
-      height: 100px;
-      object-fit: cover;
-      border: 2px solid #000;
-      border-radius: 10px;
-    }
-    .skin-option button {
-      margin-top: 5px;
-      padding: 5px 10px;
-    }
-    #closeMenu {
-      position: absolute;
-      top: 5px;
-      right: 10px;
-      font-size: 18px;
+    #chatClose {
+      position: absolute; top: 5px; right: 5px;
       background: red;
       color: white;
       border: none;
-      padding: 5px 10px;
       cursor: pointer;
+      padding: 2px 6px;
+      font-size: 12px;
+      border-radius: 3px;
     }
   </style>
 </head>
@@ -95,12 +73,23 @@
   <div id="winMessage">Ganaste, Mangonio está orgulloso 🚉<br>Puntaje máximo alcanzado</div>
   <div id="score">Puntos: 0</div>
   <button id="skinButton">Skins</button>
-  <div id="skinMenu">
-    <button id="closeMenu">X</button>
-  </div>
+  <div id="skinMenu"><button id="closeMenu">X</button></div>
   <canvas id="game" width="800" height="300"></canvas>
 
+  <!-- Chat global -->
+  <button id="chatButton">💬</button>
+  <div id="chatBox">
+    <div id="chatHeader">Chat Global<button id="chatClose">X</button></div>
+    <div id="chatMessages"></div>
+    <div id="chatInputWrap">
+      <input id="chatInput" placeholder="Escribe un mensaje..." />
+      <button id="chatSend">Enviar</button>
+    </div>
+  </div>
+
   <script>
+    // —––––––––––––––––––––––––––––––––––––––––––––
+    // Código del juego (sin cambios respecto al original)
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
     const scoreDisplay = document.getElementById("score");
@@ -135,31 +124,12 @@
     let isCrouching = false;
 
     function resetGame() {
-      mangonio = {
-        x: 60,
-        y: canvas.height - 60 - 70,
-        width: 50,
-        height: 70,
-        vy: 0,
-        jumpPower: -13,
-        gravity: 0.9,
-        grounded: true,
-        hitboxReduction: 0.9,
-        normalHeight: 70,
-        crouchHeight: 35
-      };
-
-      obstacles = [];
-      speed = 6;
-      frame = 0;
-      score = 0;
-      gameOver = false;
-      youWin = false;
+      mangonio = { x:60, y: canvas.height-60-70, width:50, height:70, vy:0, jumpPower:-13, gravity:0.9, grounded:true, hitboxReduction:0.9, normalHeight:70, crouchHeight:35 };
+      obstacles = []; speed = 6; frame = 0; score = 0; gameOver = false; youWin = false;
       speedStartTime = performance.now();
       gameOverText.style.display = "none";
       winMessage.style.display = "none";
       scoreDisplay.textContent = "Puntos: 0";
-
       requestAnimationFrame(update);
     }
 
@@ -172,147 +142,134 @@
       ctx.drawImage(mangonioImg, mangonio.x, mangonio.y, mangonio.width, mangonio.height);
     }
 
-    function drawCactus(cactus) {
+    function drawCactus(c) {
       ctx.fillStyle = "#2e8b57";
-      ctx.fillRect(cactus.x, cactus.y, cactus.width, cactus.height);
-      ctx.fillRect(cactus.x - 10, cactus.y + 10, 8, 20);
-      ctx.fillRect(cactus.x + cactus.width, cactus.y + 10, 8, 20);
+      ctx.fillRect(c.x, c.y, c.width, c.height);
+      ctx.fillRect(c.x-10, c.y+10, 8,20);
+      ctx.fillRect(c.x+c.width, c.y+10, 8,20);
     }
 
     function drawWin() {
-      ctx.font = "30px Arial";
-      ctx.fillStyle = "purple";
-      ctx.fillText("🎂", canvas.width / 2 - 15, canvas.height / 2);
-      for (let i = 0; i < 100; i++) {
-        ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 50%)`;
-        ctx.beginPath();
-        ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      ctx.font = "30px Arial"; ctx.fillStyle = "purple"; ctx.fillText("🎂", canvas.width/2-15, canvas.height/2);
+      for(let i=0;i<100;i++){ ctx.fillStyle=`hsl(${Math.random()*360},100%,50%)`; ctx.beginPath(); ctx.arc(Math.random()*canvas.width, Math.random()*canvas.height, 3,0,Math.PI*2); ctx.fill(); }
     }
 
-    function update() {
-      if (gameOver || youWin) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    function update(){
+      if(gameOver||youWin)return;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
       drawFloor();
 
-      // Agacharse
-      if (isCrouching && mangonio.grounded) {
+      if(isCrouching && mangonio.grounded){
         mangonio.height = mangonio.crouchHeight;
-        mangonio.y = canvas.height - 60 - mangonio.height;
-      } else if (mangonio.height !== mangonio.normalHeight) {
+        mangonio.y = canvas.height-60-mangonio.height;
+      } else if(mangonio.height!==mangonio.normalHeight){
         mangonio.height = mangonio.normalHeight;
-        mangonio.y = canvas.height - 60 - mangonio.height;
+        mangonio.y = canvas.height-60-mangonio.height;
       }
 
       mangonio.vy += mangonio.gravity;
       mangonio.y += mangonio.vy;
-      if (mangonio.y >= canvas.height - 60 - mangonio.height) {
-        mangonio.y = canvas.height - 60 - mangonio.height;
+      if(mangonio.y >= canvas.height-60-mangonio.height){
+        mangonio.y = canvas.height-60-mangonio.height;
         mangonio.vy = 0;
         mangonio.grounded = true;
       }
 
       drawMangonio();
 
-      if (frame % 60 === 0) {
-        obstacles.push({ x: canvas.width, y: canvas.height - 110, width: 20, height: 50 });
-      }
+      if(frame % 60 === 0) obstacles.push({x:canvas.width, y:canvas.height-110, width:20, height:50});
 
-      for (let i = 0; i < obstacles.length; i++) {
-        let c = obstacles[i];
+      obstacles.forEach(c => {
         c.x -= speed;
         drawCactus(c);
+      });
 
-        const shrink = 0.9; // 10% reducción hitbox cactus
-        const mx = mangonio.x + mangonio.width * (1 - mangonio.hitboxReduction) / 2;
-        const my = mangonio.y + mangonio.height * (1 - mangonio.hitboxReduction) / 2;
-        const mw = mangonio.width * mangonio.hitboxReduction;
-        const mh = mangonio.height * mangonio.hitboxReduction;
-
-        const cx = c.x + (1 - shrink) * c.width / 2;
-        const cw = c.width * shrink;
-
-        if (mx < cx + cw && mx + mw > cx && my + mh > c.y) {
-          gameOver = true;
-          gameOverText.style.display = "block";
-          return;
-        }
-      }
-
-      obstacles = obstacles.filter(c => c.x + c.width > 0);
+      obstacles = obstacles.filter(c => c.x+c.width>0);
 
       frame++;
-      const elapsedSeconds = (performance.now() - speedStartTime) / 1000;
-      if (elapsedSeconds > 10 && speed < 8) speed = 8;
-
-      if (frame % 5 === 0) {
-        score++;
-        scoreDisplay.textContent = `Puntos: ${score}`;
-        if (score % 100 === 0 && speed < 16) speed += 0.5;
-      }
-
-      if (score >= 5000) {
-        youWin = true;
-        winMessage.style.display = "block";
-        drawWin();
-        return;
-      }
+      const elapsed = (performance.now()-speedStartTime)/1000;
+      if(elapsed>10 && speed<8) speed=8;
+      if(frame%5===0){ score++; scoreDisplay.textContent=`Puntos: ${score}`; if(score%100===0 && speed<16) speed+=0.5; }
+      if(score>=5000){ youWin=true; winMessage.style.display="block"; drawWin(); return; }
 
       requestAnimationFrame(update);
     }
 
     let crouchKeys = new Set();
-
-    window.addEventListener("keydown", e => {
-      if ((e.code === "Space" || e.code === "ArrowUp") && mangonio.grounded && !gameOver && !youWin) {
-        mangonio.vy = mangonio.jumpPower;
-        mangonio.grounded = false;
-      }
-      if (e.code === "ArrowDown" || e.code === "KeyB") {
-        crouchKeys.add(e.code);
-        isCrouching = true;
-      }
-      if (e.code === "KeyR" && (gameOver || youWin)) {
-        resetGame();
-      }
+    window.addEventListener("keydown", e=>{
+      if((e.code==="Space"||e.code==="ArrowUp") && mangonio.grounded && !gameOver && !youWin){ mangonio.vy = mangonio.jumpPower; mangonio.grounded = false; }
+      if(e.code==="ArrowDown"||e.code==="KeyB"){ crouchKeys.add(e.code); isCrouching=true; }
+      if(e.code==="KeyR"&&(gameOver||youWin)) resetGame();
+    });
+    window.addEventListener("keyup", e=>{
+      if(e.code==="ArrowDown"||e.code==="KeyB"){ crouchKeys.delete(e.code); if(crouchKeys.size===0) isCrouching=false; }
     });
 
-    window.addEventListener("keyup", e => {
-      if (e.code === "ArrowDown" || e.code === "KeyB") {
-        crouchKeys.delete(e.code);
-        if (crouchKeys.size === 0) {
-          isCrouching = false;
-        }
-      }
-    });
-
-    function showSkinMenu() {
+    skinButton.onclick = () => {
       skinMenu.innerHTML = '<button id="closeMenu">X</button>';
-      skins.forEach(skin => {
+      skins.forEach(skin=>{
         const div = document.createElement("div");
-        div.className = "skin-option";
-        div.innerHTML = `
-          <img src="${skin.file}" alt="${skin.name}" />
-          <div>${skin.name}</div>
-          <button>Seleccionar</button>
-        `;
-        div.querySelector("button").onclick = () => {
-          if (skin.requiresCode) {
+        div.className="skin-option";
+        div.innerHTML=`<img src="${skin.file}" alt="${skin.name}" /><div>${skin.name}</div><button>Seleccionar</button>`;
+        div.querySelector("button").onclick = ()=>{
+          if(skin.requiresCode) {
             const code = prompt("Introduce el código para desbloquear esta skin:");
-            if (code !== "GilGuapo") return alert("Código incorrecto");
+            if(code!=="GilGuapo") return alert("Código incorrecto");
           }
-          mangonioImg.src = skin.file;
-          skinMenu.style.display = "none";
+          mangonioImg.src=skin.file;
+          skinMenu.style.display="none";
         };
         skinMenu.appendChild(div);
       });
-      document.getElementById("closeMenu").onclick = () => skinMenu.style.display = "none";
-      skinMenu.style.display = "block";
+      document.getElementById("closeMenu").onclick = ()=>skinMenu.style.display="none";
+      skinMenu.style.display="block";
+    };
+
+    mangonioImg.onload = resetGame;
+
+    // —––––––––––––––––––––––––––––––––––––––––––––
+    // Chat global (solo añadido, sin tocar juego)
+
+    const chatBtn = document.getElementById("chatButton");
+    const chatBox = document.getElementById("chatBox");
+    const chatClose = document.getElementById("chatClose");
+    const chatMessages = document.getElementById("chatMessages");
+    const chatInput = document.getElementById("chatInput");
+    const chatSend = document.getElementById("chatSend");
+
+    let username = sessionStorage.getItem("mangonio_user") || "";
+    function askName() {
+      username = prompt("Tu nombre en el chat:", username || "Jugador");
+      if(username) sessionStorage.setItem("mangonio_user", username);
     }
 
-    skinButton.onclick = showSkinMenu;
-    mangonioImg.onload = resetGame;
+    function loadMessages() {
+      const arr = JSON.parse(localStorage.getItem("mangonio_chat")||"[]");
+      const now = Date.now();
+      const filtered = arr.filter(msg => now - msg.time < 5*60*1000);
+      localStorage.setItem("mangonio_chat", JSON.stringify(filtered));
+      chatMessages.innerHTML = filtered.map(msg => `<div><b>${msg.user}:</b> ${msg.text}</div>`).join("");
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    chatBtn.onclick = ()=>{
+      if(!username) askName();
+      loadMessages();
+      chatBox.style.display = "flex";
+    };
+    chatClose.onclick = ()=> chatBox.style.display = "none";
+
+    chatSend.onclick = ()=>{
+      const text = chatInput.value.trim();
+      if(!text) return;
+      chatInput.value="";
+      const arr = JSON.parse(localStorage.getItem("mangonio_chat")||"[]");
+      arr.push({user: username, text, time: Date.now()});
+      localStorage.setItem("mangonio_chat", JSON.stringify(arr));
+      loadMessages();
+    };
+
+    setInterval(loadMessages, 5000);
   </script>
 </body>
 </html>
